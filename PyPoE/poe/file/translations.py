@@ -422,6 +422,12 @@ class TranslationLanguage(TranslationReprMixin):
             match = ts.match_range(test_values)
             temp.append((match, ts))
 
+        # Prefer matching strings that carry the requested restriction
+        if restriction:
+            restricted = [t for t in temp if t[0] > 0 and restriction in t[1].restrictions]
+            if restricted:
+                temp = restricted
+
         # Only the highest scoring/matching translation...
         rating, ts = max(temp, key=lambda x: x[0], default=(0, None))
 
