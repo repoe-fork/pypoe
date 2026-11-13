@@ -1060,8 +1060,10 @@ class TranslationQuantifierHandler(TranslationReprMixin):
                 args = [values.__next__() for i in range(0, handler.arg_size)]
                 if handler.type == TranslationQuantifier.QuantifierTypes.INT:
                     try:
-                        self.index_handlers[handler.id].append(int(args[0]))
-                    except ValueError as e:
+                        # 3.30 added trailing arguments after the stat index
+                        # ("display_indexable_support 2 1"); the first number is still the index.
+                        self.index_handlers[handler.id].append(int(args[0].split()[0]))
+                    except (ValueError, IndexError) as e:
                         warnings.warn(
                             f'Broken quantifier "{string}" - Error: {e.args[0]}', TranslationWarning
                         )
