@@ -1600,6 +1600,7 @@ class TranslationFile(AbstractFileReadOnly):
 
     def _read(self, buffer, *args, **kwargs):
         translation_index = 0
+        included = set()
         self.translations = []
         data = buffer.read().decode("utf-16")
 
@@ -1734,6 +1735,14 @@ class TranslationFile(AbstractFileReadOnly):
                 if not all_strings_restricted:
                     self.translations.append(translation)
                     for translation_id in translation.ids:
+                        # A description in this file overrides included descriptions of the same stat
+                        hashed = [
+                            t for t in self.translations_hash.get(translation_id, []) if id(t) not in included
+                        ]
+                        if hashed:
+                            self.translations_hash[translation_id] = hashed
+                        else:
+                            self.translations_hash.pop(translation_id, None)
                         self._add_translation_hashed(translation_id, translation)
                 translation_index += 1
 
@@ -1747,11 +1756,13 @@ class TranslationFile(AbstractFileReadOnly):
                     include_file = match.group("include").replace("\\", "/")
                     other_tf = self._parent.get_file(include_file)
                     self.merge(other_tf)
+                    included.update(id(t) for t in other_tf.translations)
                     translation_index += len(other_tf.translations)
                 elif self._base_dir:
                     real_path = os.path.join(self._base_dir, match.group("include"))
                     other_tf = TranslationFile(real_path, base_dir=self._base_dir)
                     self.merge(other_tf)
+                    included.update(id(t) for t in other_tf.translations)
                     translation_index += len(other_tf.translations)
                 else:
                     warnings.warn(
