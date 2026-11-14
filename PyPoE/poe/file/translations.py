@@ -1066,8 +1066,10 @@ class TranslationQuantifierHandler(TranslationReprMixin):
                 args = [values.__next__() for i in range(0, handler.arg_size)]
                 if handler.type == TranslationQuantifier.QuantifierTypes.INT:
                     try:
-                        self.index_handlers[handler.id].append(int(args[0]))
-                    except ValueError as e:
+                        # 3.30 added trailing arguments after the stat index
+                        # ("display_indexable_support 2 1"); the first number is still the index.
+                        self.index_handlers[handler.id].append(int(args[0].split()[0]))
+                    except (ValueError, IndexError) as e:
                         warnings.warn(
                             f'Broken quantifier "{string}" - Error: {e.args[0]}', TranslationWarning
                         )
@@ -2219,6 +2221,16 @@ class TranslationFileCache(AbstractFileCache[TranslationFile]):
 
         if self.sequel == 2:
             file_name = file_name.replace(".txt", ".csd")
+        elif file_name.endswith(".txt") and self.file_system.index:
+            # PoE1 3.30.0 renamed the stat description files .txt -> .csd, same format.
+            # Callers and older clients still ask for .txt; use .csd when it is the one present.
+            csd_name = file_name[:-4] + ".csd"
+            try:
+                self.file_system.index.get_file_record(csd_name)
+            except FileNotFoundError:
+                pass
+            else:
+                file_name = csd_name
 
         if file_name not in self.files:
             tf = self._create_instance(file_name=file_name)
@@ -2856,6 +2868,31 @@ TranslationQuantifier(
 TranslationQuantifier(
     id="canonical_stat",
 )
+
+# PoE1 3.30.0: the timeless jewel line names its conqueror and keystone through these two
+# ("alternate_tree_version_name 1 alternate_tree_version_keystone 3 1 4"); values pass through unchanged
+TranslationQuantifier(
+    id="alternate_tree_version_name",
+)
+
+TranslationQuantifier(
+    id="alternate_tree_version_keystone",
+    arg_size=3,
+)
+
+# PoE1 3.30.0: new single-argument handlers, each an index into a game table. Not resolved to
+# text here; the number passes through unchanged.
+for _handler_id in (
+    "pelagic_pearl_slot",
+    "passive_jewel_radius",
+    "shaper_apparition_ability",
+    "minion_doubling_type",
+    "atlas_exile_citadel_index",
+    "fishing_lure_type",
+    "fishing_hook_type",
+    "elder_guardian_index",
+):
+    TranslationQuantifier(id=_handler_id)
 
 # These will be replaced by install_data_dependant_quantifiers
 TranslationQuantifier(

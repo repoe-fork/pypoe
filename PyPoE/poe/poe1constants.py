@@ -636,6 +636,9 @@ class MOD_DOMAIN(IntEnumOverride):
     DEEPWATER_BORDER = 40
     MERCENARY = 41
     DUCAT_CRAFTED = 42
+    # 3.30.0, named here from the mod ids that use them (HarvestTree*, HarvestImplicit*; LegionMonolith*)
+    HARVEST_TREE = 43
+    LEGION_MONOLITH = 44
 
     # legacy names
     MASTER = CRAFTED
@@ -659,6 +662,8 @@ MOD_TRANSLATION_MAP = {
     MOD_DOMAIN.TINCTURE: "tincture_stat_descriptions.txt",
     MOD_DOMAIN.MAP_RELIC: "atlas_relic_stat_descriptions.txt",
     MOD_DOMAIN.BREQUEL_GRAFT: "graft_stat_descriptions.txt",
+    MOD_DOMAIN.HARVEST_TREE: "harvest_stat_descriptions.txt",
+    MOD_DOMAIN.LEGION_MONOLITH: "legion_stat_descriptions.txt",
 }
 
 
