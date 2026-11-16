@@ -128,14 +128,11 @@ def run():
         if n_rows > 0:
             record_length = length // n_rows
 
-        out.append(
-            """    '%s': File(
+        out.append("""    '%s': File(
         fields=(
 %s
         ),
-    ),"""
-            % (fn, spec_unknown(record_length))
-        )
+    ),""" % (fn, spec_unknown(record_length)))
 
     print("\n".join(out))
 

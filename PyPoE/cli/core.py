@@ -200,6 +200,5 @@ def console(message, msg=Msg.default, rtr=False, raw=False):
         f = msg.value + strftime("%X ") + message + Msg.default.value
     if rtr:
         return f
-    global quiet
     if not quiet or msg == Msg.error:
         print(f)

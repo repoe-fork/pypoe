@@ -2304,7 +2304,6 @@ def get_custom_translation_file(sequel=1) -> TranslationFile:
     TranslationFile
         the currently loaded custom translation file
     """
-    global _custom_translation_file
     if _custom_translation_file is None:
         set_custom_translation_file(sequel=sequel)
     return _custom_translation_file
@@ -2356,7 +2355,6 @@ def get_hardcoded_translation_file(sequel=1) -> TranslationFile:
     TranslationFile
         the currently loaded hardcoded translation file
     """
-    global _hardcoded_translation_file
     if _hardcoded_translation_file is None:
         set_hardcoded_translation_file(sequel=sequel)
     return _hardcoded_translation_file

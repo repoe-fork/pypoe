@@ -2601,7 +2601,6 @@ class ItemsParser(parser.BaseParser):
             out[-1] += "<br>"
 
         def add_line(text, mod):
-            nonlocal out
             out.append("%s: %s" % (text, "".join(self._get_stats(mod=mod))))
 
         item_mod = essence["Display_Items_ModsKey"]
