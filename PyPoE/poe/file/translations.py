@@ -19,7 +19,7 @@ Description
 
 Utilities for parsing and using GGG translations.
 
-The translation GGG provides are generally suffixed by _descriptions.txt and
+The translation GGG provides are generally suffixed by _descriptions.csd and
 can be found in the MetaData/StatDescriptions/ folder.
 
 Agreement
@@ -1056,22 +1056,27 @@ class TranslationQuantifierHandler(TranslationReprMixin):
             quantifier string
         """
         values = iter(self.regex.split(string))
-
         for partial in values:
             partial = partial.strip()
             if partial == "":
                 continue
             handler = self.handlers.get(partial)
             if handler:
-                args = [values.__next__() for i in range(0, handler.arg_size)]
+                # As of version 3.30, translation quantifiers sometimes take more than one stat index argument
+                args = values.__next__().split() if handler.arg_size > 0 else []
+                args_found = len(args)
+                if args_found != handler.arg_size:
+                    args = args[: handler.arg_size]
+                    warnings.warn(
+                        f"Quantifier {partial} expects {handler.arg_size} argument(s), but found {args_found}.",
+                        TranslationWarning,
+                    )
                 if handler.type == TranslationQuantifier.QuantifierTypes.INT:
                     try:
-                        # 3.30 added trailing arguments after the stat index
-                        # ("display_indexable_support 2 1"); the first number is still the index.
-                        self.index_handlers[handler.id].append(int(args[0].split()[0]))
-                    except (ValueError, IndexError) as e:
+                        self.index_handlers[handler.id].extend([int(x) for x in args])
+                    except ValueError as e:
                         warnings.warn(
-                            f'Broken quantifier "{string}" - Error: {e.args[0]}', TranslationWarning
+                            f'Broken quantifier "{string}" - Error: {e}', TranslationWarning
                         )
                 elif handler.type == TranslationQuantifier.QuantifierTypes.STRING:
                     self.string_handlers[handler.id] = args
@@ -1305,6 +1310,7 @@ class TQRelationalData(TranslationQuantifier):
         convert_type: str = None,
         format_value: Callable = None,
         index_start: int = 0,
+        arg_size: int = 1,
     ):
         self.table = relational_reader[table]
         if index_column and index_column not in self.table.index:
@@ -1317,11 +1323,18 @@ class TQRelationalData(TranslationQuantifier):
         self.format_value = format_value or str
         self.index_start = index_start
         super().__init__(
-            id=id, handler=self.handle, reverse_handler=None if format_value else self.reverse
+            id=id,
+            handler=self.handle,
+            reverse_handler=None if format_value else self.reverse,
+            arg_size=arg_size,
         )
 
     def range_format(self, v: tuple, _):
-        return v[0] if v[0] == v[1] else self.placeholder
+        if v[0] == v[1]:
+            return v[0]
+        if self.placeholder:
+            return self.placeholder
+        return f"({v[0]}-{v[1]})"
 
     def handle(self, v):
         try:
@@ -1511,7 +1524,7 @@ class TranslationFile(AbstractFileReadOnly):
 
     Translation files can be found in the following folder in the content.ggpk:
 
-    Metadata/StatDescriptions/xxx_descriptions.txt
+    Metadata/StatDescriptions/xxx_descriptions.csd
 
     Attributes
     ----------
@@ -2173,8 +2186,8 @@ class TranslationFileCache(AbstractFileCache[TranslationFile]):
         added Metadata automatically.
 
         That means the following is equivalent:
-        obj['stat_descriptions.txt']
-        obj.get_file('Metadata/StatDescriptions/stat_descriptions.txt')
+        obj['stat_descriptions.csd']
+        obj.get_file('Metadata/StatDescriptions/stat_descriptions.csd')
 
         Parameters
         ----------
@@ -2223,18 +2236,8 @@ class TranslationFileCache(AbstractFileCache[TranslationFile]):
             the specified TranslationFile
         """
 
-        if self.sequel == 2:
+        if file_name.endswith(".txt") and file_name not in self.files:
             file_name = file_name.replace(".txt", ".csd")
-        elif file_name.endswith(".txt") and self.file_system.index:
-            # PoE1 3.30.0 renamed the stat description files .txt -> .csd, same format.
-            # Callers and older clients still ask for .txt; use .csd when it is the one present.
-            csd_name = file_name[:-4] + ".csd"
-            try:
-                self.file_system.index.get_file_record(csd_name)
-            except FileNotFoundError:
-                pass
-            else:
-                file_name = csd_name
 
         if file_name not in self.files:
             tf = self._create_instance(file_name=file_name)
@@ -2423,66 +2426,11 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
         placeholder="&lt;random Tempest modifier&gt;",
     )
 
-    if relational_reader.specification.sequel == 1:
-        TQRelationalData(
-            id="display_indexable_support",
-            relational_reader=relational_reader,
-            table="IndexableSupportGems.dat64",
-            index_column="Index",
-            placeholder="&lt;random Support Gem&gt;",
-        )
-
-    if relational_reader.specification.sequel == 1:
-        TQRelationalData(
-            id="display_indexable_non_active_support",
-            relational_reader=relational_reader,
-            table="IndexableNonActiveSupportGems.dat64",
-            index_column="Index",
-            placeholder="&lt;random Support Gem (without Active Skill)&gt;",
-        )
-
     TQRelationalData(
         id="tree_expansion_jewel_passive",
         relational_reader=relational_reader,
         table="PassiveTreeExpansionJewelSizes.dat64",
     )
-
-    if relational_reader.specification.sequel == 1:
-        TQRelationalData(
-            id="affliction_reward_type",
-            relational_reader=relational_reader,
-            table="AfflictionRewardTypeVisuals.dat64",
-            index_column="AfflictionRewardTypes",
-            placeholder="&lt;Delirium reward&gt;",
-        )
-
-    if relational_reader.specification.sequel == 1:
-        TQRelationalData(
-            id="display_indexable_skill",
-            relational_reader=relational_reader,
-            table="IndexableSkillGems.dat64",
-            index_column="Index",
-            placeholder="&lt;random Skill&gt;",
-        )
-
-    if relational_reader.specification.sequel == 2:
-        TQRelationalData(
-            id="ultimatum_wager_type_hash",
-            relational_reader=relational_reader,
-            table="UltimatumWagerTypes.dat64",
-            index_column="HASH16",
-            value_column="DisplayText",
-        )
-
-    if relational_reader.specification.sequel == 2:
-        TQRelationalData(
-            id="specific_skill",
-            relational_reader=relational_reader,
-            table="SkillGemsForUniqueStat.dat64",
-            index_column="Index",
-            value_column="SkillGems",
-            format_value=lambda r: " and ".join(skill["BaseItemType"]["Name"] for skill in r),
-        )
 
     TQRelationalData(
         id="passive_hash",
@@ -2493,7 +2441,138 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
         placeholder="&lt;random Passive Skill&gt;",
     )
 
+    # PoE1
+    if relational_reader.specification.sequel == 1:
+        # TODO: This quantifier is supposed to take 2 stat index arguments, but this doesn't work yet.
+        TQRelationalData(
+            id="display_indexable_support",
+            relational_reader=relational_reader,
+            table="IndexableSupportGems.dat64",
+            index_column="Index",
+            placeholder="&lt;random Support Gem&gt;",
+            # arg_size=2,
+        )
+
+        TQRelationalData(
+            id="affliction_reward_type",
+            relational_reader=relational_reader,
+            table="AfflictionRewardTypeVisuals.dat64",
+            index_column="AfflictionRewardTypes",
+            placeholder="&lt;Delirium reward&gt;",
+        )
+
+        # TODO: This quantifier is supposed to take 2 stat index arguments, but this doesn't work yet.
+        TQRelationalData(
+            id="display_indexable_skill",
+            relational_reader=relational_reader,
+            table="IndexableSkillGems.dat64",
+            index_column="Index",
+            placeholder="&lt;random Skill&gt;",
+            # arg_size=2,
+        )
+
+        TQRelationalData(
+            id="alternate_tree_version_name",
+            relational_reader=relational_reader,
+            table="AlternateTreeVersions.dat64",
+            value_column="Name",
+        )
+
+        # TODO: This quantifier is supposed to take 3 stat index arguments, but this doesn't work yet.
+        TQRelationalData(
+            id="alternate_tree_version_keystone",
+            relational_reader=relational_reader,
+            table="AlternateTreeVersionKeystones.dat64",
+            index_column="StatValue",
+            placeholder="&lt;random Historical Figure&gt;",
+            # arg_size=3,
+        )
+
+        TQRelationalData(
+            id="passive_jewel_radius",
+            relational_reader=relational_reader,
+            table="PassiveJewelRadii.dat64",
+            index_start=1,
+            value_column="ClientString",
+            # placeholder="&lt;random Jewel radius&gt;",
+            format_value=lambda v: v["Text"],
+        )
+
+        TQRelationalData(
+            id="shaper_apparition_ability",
+            relational_reader=relational_reader,
+            table="ShaperApparitionAbility.dat64",
+            index_start=1,
+            value_column="Name",
+            placeholder="&lt;random Shaper Memory Skill&gt;",
+        )
+
+        TQRelationalData(
+            id="minion_doubling_type",
+            relational_reader=relational_reader,
+            table="MinionDoublingStatTypes.dat64",
+            index_start=1,
+            index_column="Id",
+            value_column="Name",
+            placeholder="&lt;random Minion Type&gt;",
+        )
+
+        # TODO: Figure out which table this uses
+        # TQRelationalData(
+        #     id="pelagic_pearl_slot",
+        #     relational_reader=relational_reader,
+        #     table=".dat64",
+        #     index_start=1,
+        #     placeholder="&lt;random slot&gt;",
+        # )
+
+        # TODO: This quantifier is supposed to take 2 stat index arguments, but this doesn't work yet.
+        TQRelationalData(
+            id="display_indexable_non_active_support",
+            relational_reader=relational_reader,
+            table="IndexableNonActiveSupportGems.dat64",
+            index_column="Index",
+            placeholder="&lt;random Support Gem&gt;",
+            # arg_size=2,
+        )
+
+        TQRelationalData(
+            id="fishing_lure_type",
+            relational_reader=relational_reader,
+            table="FishingLureTypes.dat64",
+            index_start=1,
+            value_column="Name",
+            placeholder="&lt;random Fishing Lure&gt;",
+        )
+
+        TQRelationalData(
+            id="fishing_hook_type",
+            relational_reader=relational_reader,
+            table="FishingHookTypes.dat64",
+            index_start=1,
+            value_column="Name",
+            placeholder="&lt;random Fishing Hook&gt;",
+        )
+
+    # PoE2
     if relational_reader.specification.sequel == 2:
+        TQRelationalData(
+            id="ultimatum_wager_type_hash",
+            relational_reader=relational_reader,
+            table="UltimatumWagerTypes.dat64",
+            index_column="HASH16",
+            value_column="DisplayText",
+        )
+
+        TQRelationalData(
+            id="specific_skill",
+            relational_reader=relational_reader,
+            table="SkillGemsForUniqueStat.dat64",
+            index_column="Index",
+            value_column="SkillGems",
+            format_value=lambda r: " and ".join(skill["BaseItemType"]["Name"] for skill in r),
+        )
+
         TQRelationalData(
             id="passive_keystone_index",
             relational_reader=relational_reader,
@@ -2890,6 +2969,11 @@ for _handler_id in (
 
 # These will be replaced by install_data_dependant_quantifiers
 TranslationQuantifier(
+    id="reminderstring",
+    type=TranslationQuantifier.QuantifierTypes.STRING,
+)
+
+TranslationQuantifier(
     id="mod_value_to_item_class",
 )
 
@@ -2898,15 +2982,7 @@ TranslationQuantifier(
 )
 
 TranslationQuantifier(
-    id="display_indexable_support",
-)
-
-TranslationQuantifier(
     id="tree_expansion_jewel_passive",
-)
-
-TranslationQuantifier(
-    id="affliction_reward_type",
 )
 
 TranslationQuantifier(
@@ -2914,7 +2990,59 @@ TranslationQuantifier(
 )
 
 TranslationQuantifier(
-    id="metamorphosis_reward_description",
+    id="display_indexable_support",
+)
+
+TranslationQuantifier(
+    id="affliction_reward_type",
+)
+
+TranslationQuantifier(
+    id="display_indexable_skill",
+)
+
+TranslationQuantifier(
+    id="alternate_tree_version_name",
+)
+
+TranslationQuantifier(
+    id="alternate_tree_version_keystone",
+)
+
+TranslationQuantifier(
+    id="passive_jewel_radius",
+)
+
+TranslationQuantifier(
+    id="shaper_apparition_ability",
+)
+
+TranslationQuantifier(
+    id="minion_doubling_type",
+)
+
+TranslationQuantifier(
+    id="pelagic_pearl_slot",
+)
+
+TranslationQuantifier(
+    id="display_indexable_non_active_support",
+)
+
+TranslationQuantifier(
+    id="fishing_lure_type",
+)
+
+TranslationQuantifier(
+    id="fishing_hook_type",
+)
+
+TranslationQuantifier(
+    id="atlas_exile_citadel_index",
+)
+
+TranslationQuantifier(
+    id="elder_guardian_index",
 )
 
 TranslationQuantifier(
@@ -2926,24 +3054,11 @@ TranslationQuantifier(
 )
 
 TranslationQuantifier(
-    id="reminderstring",
-    type=TranslationQuantifier.QuantifierTypes.STRING,
-)
-
-TranslationQuantifier(
-    id="display_indexable_skill",
-)
-
-TranslationQuantifier(
     id="passive_keystone_index",
 )
 
 TranslationQuantifier(
     id="mages_legacy_index",
-)
-
-TranslationQuantifier(
-    id="display_indexable_non_active_support",
 )
 
 TranslationQuantifierHandler.init()
