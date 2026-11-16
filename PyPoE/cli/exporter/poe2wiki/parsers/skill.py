@@ -645,9 +645,12 @@ class SkillParserShared(parser.BaseParser):
 
         # From ActiveSkills.dat64
         if act_skill:
-            infobox["gem_description"] = parser.process_keywords(act_skill["Description"])
-            infobox["active_skill_name"] = act_skill["DisplayedName"]
-
+            if act_skill["Description"]:
+                infobox["gem_description"] = parser.process_keywords(
+                    "<br>".join(act_skill["Description"].splitlines())
+                )
+            if act_skill["DisplayedName"]:
+                infobox["active_skill_name"] = act_skill["DisplayedName"]
             if act_skill["WeaponRequirements"]:
                 wieldable_classes = act_skill["WeaponRequirements"]["WieldableClasses"]
                 infobox["item_class_id_restriction"] = ", ".join(
@@ -746,7 +749,7 @@ class SkillParserShared(parser.BaseParser):
                     )[0].split("\n")
                 )
 
-            infobox[prefix + "stat_text"] = parser.process_keywords("<br>".join(lines))
+            infobox[prefix + "stat_text"] = parser.process_keywords(self._format_lines(lines))
             if breakpoints:
                 infobox[prefix + "breakpoints"] = ",".join(breakpoints)
 
@@ -1050,7 +1053,9 @@ class SkillParser(SkillParserShared):
                 else None
             )
             if gem_effect and gem_effect["SupportText"]:
-                data["gem_description"] = parser.process_keywords(gem_effect["SupportText"])
+                data["gem_description"] = parser.process_keywords(
+                    "<br>".join(gem_effect["SupportText"].splitlines())
+                )
             if skill_gem:
                 if not parsed_args.allow_skill_gems:
                     console(

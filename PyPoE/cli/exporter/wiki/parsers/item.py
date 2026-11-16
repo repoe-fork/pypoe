@@ -95,18 +95,19 @@ def _linear_to_srgb(img):
 def _type_factory(
     data_file: str,
     data_mapping: tuple[tuple[str, dict], ...],
-    row_index=True,
+    index_column="BaseItemTypesKey",
+    row_index=None,
     function=None,
     fail_condition=False,
     skip_warning=False,
-    index_column="BaseItemTypesKey",
 ):
-    def func(self, infobox, base_item_type):
+    def func(self, infobox, base_item_type, extended_type=None):
         if data_file == "BaseItemTypes.dat64":
             data = base_item_type
         else:
             file: DatReader = self.rr[data_file]
-            idx = base_item_type.rowid if row_index else base_item_type["Id"]
+            data_type = extended_type or base_item_type
+            idx = data_type[row_index] if row_index else data_type.rowid
 
             if index_column not in file.index:
                 file.build_index(index_column)
@@ -181,7 +182,7 @@ class WikiCondition(parser.WikiCondition):
         "alternate_art_inventory_icons",
         "frame_type",
         "influences",
-        "card_background",
+        "card_effects",
         # Drop restrictions
         "drop_enabled",
         "acquisition_tags",
@@ -212,6 +213,8 @@ class WikiCondition(parser.WikiCondition):
         # Version information
         "release_version",
         "removal_version",
+        # Heist
+        "heist_target",
         # Sentinels
         "sentinel_monster",
         "sentinel_monster_level",
@@ -390,7 +393,7 @@ class ItemsParser(parser.BaseParser):
             "Metadata/Items/PantheonSouls/PantheonSoulRyslathaUpgrade1": (
                 "Captured Soul (Ryslatha upgrade)"
             ),
-        }
+        },
     }
 
     _NAME_APPENDIX_BY_ID = {
@@ -493,11 +496,16 @@ class ItemsParser(parser.BaseParser):
             "Metadata/Items/Amulets/Talismans/Talisman3_6_1": " (Power Charge on Kill)",
             "Metadata/Items/Amulets/Talismans/Talisman3_6_2": " (Frenzy Charge on Kill)",
             "Metadata/Items/Amulets/Talismans/Talisman3_6_3": " (Endurance Charge on Kill)",
+            "Metadata/Items/Amulets/Talismans/Talisman1_1": " (legacy)",
+            "Metadata/Items/Amulets/Talismans/TalismanBlackMaw": "",
+            "Metadata/Items/Amulets/Talismans/Talisman4": " (legacy)",
+            "Metadata/Items/Amulets/Talismans/TalismanGreatwolf": "",
             # =================================================================
             # Currency items
             # =================================================================
             "Metadata/Items/Currency/CurrencySilverCoin": " (Prophecy)",
             "Metadata/Items/Currency/CurrencyAncestralSilverCoin": "",
+            "Metadata/Items/Currency/CurrencyAfflictionOrbHardMode": " (generic)",
             # =================================================================
             # Hideout decorations
             # =================================================================
@@ -556,16 +564,6 @@ class ItemsParser(parser.BaseParser):
             # =================================================================
             # Cosmetic items
             # =================================================================
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x1": " (1x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x2": " (1x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x3": " (1x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x4": " (1x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x1": " (2x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x2": " (2x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x3": " (2x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x4": " (2x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x2": " (3x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x3": " (3x3)",
             "Metadata/Items/MicrotransactionItemEffects/MicrotransactionIronMaiden": " (helmet skin)",
             "Metadata/Items/MicrotransactionItemEffects/MicrotransactionInfernalAxe": " (weapon skin)",
             "Metadata/Items/MicrotransactionItemEffects/MicrotransactionColossusSword": "",
@@ -601,6 +599,7 @@ class ItemsParser(parser.BaseParser):
             "Metadata/Items/QuestItems/GoldenPages/Page4": " (4 of 4)",
             "Metadata/Items/QuestItems/Act7/KisharaStar": " (quest item)",
             "Metadata/Items/QuestItems/Act11/DominusKey": " (quest item)",
+            "Metadata/Items/QuestItems/AllFlameLantern1": " (quest item)",
             # =================================================================
             # Heist equipment
             # =================================================================
@@ -617,310 +616,6 @@ class ItemsParser(parser.BaseParser):
             "Metadata/Items/ItemisedCorpses/HydraMid": " (corpse item)",
             "Metadata/Items/ItemisedCorpses/OakMid": " (corpse item)",
         },
-        "Russian": {
-            # =================================================================
-            # Active Skill Gems
-            # =================================================================
-            "Metadata/Items/Gems/SkillGemPortal": " (камень умения)",
-            # =================================================================
-            # One Hand Axes
-            # =================================================================
-            "Metadata/Items/Weapons/OneHandWeapons/OneHandAxes/OneHandAxe22": "",
-            # =================================================================
-            # Boots
-            # =================================================================
-            "Metadata/Items/Armours/Boots/BootsInt4": "",
-            # Legion Boots
-            "Metadata/Items/Armours/Boots/BootsStrInt7": "",
-            "Metadata/Items/Armours/Boots/BootsAtlas1": " (сопротивление холоду и молнии)",
-            "Metadata/Items/Armours/Boots/BootsAtlas2": " (сопротивление огню и холоду)",
-            "Metadata/Items/Armours/Boots/BootsAtlas3": " (сопротивление огню и молнии)",
-            # =================================================================
-            # Gloves
-            # =================================================================
-            # Legion Gloves
-            "Metadata/Items/Armours/Gloves/GlovesStrInt7": "",
-            # =================================================================
-            # Quivers
-            # =================================================================
-            "Metadata/Items/Quivers/QuiverDescent": " (Спуск)",
-            # =================================================================
-            # Rings
-            # =================================================================
-            "Metadata/Items/Rings/Ring12": " (рубин и топаз)",
-            "Metadata/Items/Rings/Ring13": " (сапфир и топаз)",
-            "Metadata/Items/Rings/Ring14": " (рубин и сапфир)",
-            # =================================================================
-            # Amulets
-            # =================================================================
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_1": (
-                " (получаемый урон от огня становится уроном от холода)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_2": (
-                " (получаемый урон от огня становится уроном от молнии)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_3": (
-                " (получаемый урон от холода становится уроном от огня)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_4": (
-                " (получаемый урон от холода становится уроном от молнии)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_5": (
-                " (получаемый урон от молнии становится уроном от холода)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_6": (
-                " (получаемый урон от молнии становится уроном от огня)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_1": " (заряд энергии при убийстве)",
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_2": " (заряд ярости при убийстве)",
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_3": " (заряд выносливости при убийстве)",
-            # =================================================================
-            # Hideout Doodads
-            # =================================================================
-            "Metadata/Items/Hideout/HideoutMalachaiHeart": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutVaalWhispySmoke": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutChestVaal": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutEncampmentFireplace": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutEncampmentLetters": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutIncaPyramid": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutDarkSoulercoaster": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutVaalMechanism": " (предмет убежища)",
-            "Metadata/Items/Hideout/HideoutCharredSkeleton": " (предмет убежища)",
-            "Metadata/Items/HideoutInteractables/DexIntCraftingBench": " (предмет убежища)",
-            # =================================================================
-            # Piece
-            # =================================================================
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_1": " (1 из 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_2": " (2 из 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_3": " (3 из 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_4": " (4 из 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_1": " (1 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_2": " (2 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_3": " (3 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_1": " (1 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_2": " (2 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_3": " (3 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueBelt1_1": " (1 из 2)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueBelt1_2": " (2 из 2)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_1": " (1 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_2": " (2 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_3": " (3 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_1": " (1 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_2": " (2 из 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_3": " (3 из 3)",
-            # =================================================================
-            # MTX
-            # =================================================================
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x1": " (1x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x2": " (1x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x3": " (1x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x4": " (1x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x1": " (2x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x2": " (2x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x3": " (2x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x4": " (2x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x2": " (3x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x3": " (3x3)",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionIronMaiden": "",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionInfernalAxe": (
-                " (внешний вид оружия)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionColossusSword": "",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionLegionBoots": (
-                " (микротранзакция)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionLegionGloves": (
-                " (микротранзакция)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MasterArmour1Boots": " (микротранзакция)",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionSinFootprintsEffect": (
-                " (микротранзакция)"
-            ),
-            "Metadata/Items/Pets/DemonLion": " (питомец)",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionHeartWeapon2014": " (2014)",
-            # =================================================================
-            # Quest items
-            # =================================================================
-            "Metadata/Items/QuestItems/GoldenPages/Page1": " (1 из 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page2": " (2 из 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page3": " (3 из 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page4": " (4 из 4)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier8_1": " (1 из 2)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier8_2": " (2 из 2)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_1": " (1 из 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_2": " (2 из 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_3": " (3 из 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_1": " (1 из 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_2": " (2 из 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_3": " (3 из 3)",
-            "Metadata/Items/QuestItems/RibbonSpool": " (предмет)",
-            "Metadata/Items/QuestItems/Act7/SilverLocket": " (предмет)",
-            "Metadata/Items/QuestItems/Act7/KisharaStar": " (предмет)",
-            "Metadata/Items/QuestItems/Act8/WingsOfVastiri": " (предмет)",
-            "Metadata/Items/QuestItems/Act9/StormSword": " (предмет)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_1": " (1 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_2": " (2 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_3": " (3 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_4": " (4 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_5": " (5 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_6": " (6 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_7": " (7 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade1_8": " (8 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_1": " (1 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_2": " (2 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_3": " (3 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_4": " (4 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_5": " (5 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_6": " (6 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_7": " (7 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade2_8": " (8 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_1": " (1 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_2": " (2 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_3": " (3 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_4": " (4 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_5": " (5 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_6": " (6 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_7": " (7 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade3_8": " (8 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_1": " (1 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_2": " (2 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_3": " (3 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_4": " (4 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_5": " (5 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_6": " (6 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_7": " (7 из 8)",
-            "Metadata/Items/AtlasUpgrades/AtlasRegionUpgrade4_8": " (8 из 8)",
-        },
-        "German": {
-            # =================================================================
-            # One Hand Axes
-            # =================================================================
-            "Metadata/Items/Weapons/OneHandWeapons/OneHandAxes/OneHandAxe22": "",
-            # =================================================================
-            # Boots
-            # =================================================================
-            "Metadata/Items/Armours/Boots/BootsInt4": "",
-            # Legion Boots
-            "Metadata/Items/Armours/Boots/BootsStrInt7": "",
-            "Metadata/Items/Armours/Boots/BootsAtlas1": " (Kälte und Blitz Resistenzen)",
-            "Metadata/Items/Armours/Boots/BootsAtlas2": " (Feuer und Kälte Resistenzen)",
-            "Metadata/Items/Armours/Boots/BootsAtlas3": " (Feuer und Blitz Resistenzen)",
-            # =================================================================
-            # Gloves
-            # =================================================================
-            # Legion Gloves
-            "Metadata/Items/Armours/Gloves/GlovesStrInt7": "",
-            # =================================================================
-            # Quivers
-            # =================================================================
-            "Metadata/Items/Quivers/QuiverDescent": " (Descent)",
-            # =================================================================
-            # Rings
-            # =================================================================
-            "Metadata/Items/Rings/Ring12": " (Rubin und Topas)",
-            "Metadata/Items/Rings/Ring13": " (Saphir und Topas)",
-            "Metadata/Items/Rings/Ring14": " (Rubin und Saphir)",
-            # =================================================================
-            # Amulets
-            # =================================================================
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_1": (
-                " (Feuerschaden erlitten als Kälteschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_2": (
-                " (Feuerschaden erlitten als Blitzschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_3": (
-                " (Kälteschaden erlitten als Feuerschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_4": (
-                " (Kälteschaden erlitten als Blitzschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_5": (
-                " (Blitzschaden erlitten als Kälteschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman2_6_6": (
-                " (Blitzschaden erlitten als Feuerschaden)"
-            ),
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_1": " (Energie-Ladung bei Tötung)",
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_2": " (Raserei-Ladung bei Tötung)",
-            "Metadata/Items/Amulets/Talismans/Talisman3_6_3": " (Widerstands-Ladung bei Tötung)",
-            # =================================================================
-            # Hideout Doodads
-            # =================================================================
-            "Metadata/Items/Hideout/HideoutLightningCoil": " (Dinge fürs Versteck)",
-            # =================================================================
-            # Piece
-            # =================================================================
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_1": " (1 von 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_2": " (2 von 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_3": " (3 von 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueShield1_4": " (4 von 4)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_1": " (1 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_2": " (2 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueSword1_3": " (3 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_1": " (1 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_2": " (2 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueStaff1_3": " (3 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueBelt1_1": " (1 von 2)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueBelt1_2": " (2 von 2)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_1": " (1 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_2": " (2 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueQuiver1_3": " (3 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_1": " (1 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_2": " (2 von 3)",
-            "Metadata/Items/UniqueFragments/FragmentUniqueHelmet1_3": " (3 von 3)",
-            # =================================================================
-            # MTX
-            # =================================================================
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x1": " (1x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x2": " (1x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x3": " (1x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox1x4": " (1x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x1": " (2x1)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x2": " (2x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x3": " (2x3)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox2x4": " (2x4)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x2": " (3x2)",
-            "Metadata/Items/MicrotransactionCurrency/MysteryBox3x3": " (3x3)",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionIronMaiden": "",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionInfernalAxe": (
-                " (Weapon Skin)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionColossusSword": "",
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionLegionBoots": (
-                " (Mikrotransaktion)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionLegionGloves": (
-                " (Mikrotransaktion)"
-            ),
-            "Metadata/Items/MicrotransactionItemEffects/MicrotransactionScholarBoots": (
-                " (Mikrotransaktion)"
-            ),
-            "Metadata/Items/Pets/DemonLion": " (Haustier)",
-            # =================================================================
-            # Quest items
-            # =================================================================
-            "Metadata/Items/QuestItems/GoldenPages/Page1": " (1 von 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page2": " (2 von 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page3": " (3 von 4)",
-            "Metadata/Items/QuestItems/GoldenPages/Page4": " (4 von 4)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier8_1": " (1 von 2)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier8_2": " (2 von 2)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_1": " (1 von 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_2": " (2 von 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier9_3": " (3 von 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_1": " (1 von 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_2": " (2 von 3)",
-            "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_3": " (3 von 3)",
-            # =================================================================
-            # =================================================================
-            # ==================== Germany only conflicts =====================
-            # =================================================================
-            # =================================================================
-            # Schleifstein
-            "Metadata/Items/Currency/CurrencyWeaponQuality": "",
-            "Metadata/Items/HideoutInteractables/StrDexCraftingBench": " (Dinge fürs Versteck)",
-        },
     }
 
     _LANG = {
@@ -929,18 +624,6 @@ class ItemsParser(parser.BaseParser):
             "decoration_wounded": "%s (%s %s decoration, Wounded)",
             "of": "%s of %s",
             "descent": "Descent",
-        },
-        "German": {
-            "decoration": "%s (%s %s Dekoration)",
-            "decoration_wounded": "%s (%s %s Dekoration, verletzt)",
-            "of": "%s von %s",
-            "descent": "Descent",
-        },
-        "Russian": {
-            "decoration": "%s (%s %s предмет убежища)",
-            "decoration_wounded": "%s (%s %s предмет убежища, Раненый)",
-            "of": "%s из %s",
-            "descent": "Спуск",
         },
     }
 
@@ -1076,6 +759,11 @@ class ItemsParser(parser.BaseParser):
         "Metadata/Items/MicrotransactionCurrency/GiftBox3x2",
         "Metadata/Items/MicrotransactionCurrency/GiftBox3x1",
         "Metadata/Items/MicrotransactionCurrency/GiftBox4x1",
+        "Metadata/Items/MicrotransactionCurrency/MicrotransactionWrapper1x1",
+        "Metadata/Items/MicrotransactionCurrency/MicrotransactionWrapper1x2",
+        "Metadata/Items/MicrotransactionCurrency/MicrotransactionWrapper2x1",
+        "Metadata/Items/MicrotransactionCurrency/MicrotransactionWrapper2x2",
+        "Metadata/Items/MicrotransactionCurrency/MicrotransactionWrapper2x3",
         "Metadata/Items/MicrotransactionCurrency/HiddenItem1x1Ritual",
         "Metadata/Items/MicrotransactionCurrency/HiddenItem1x2Ritual",
         "Metadata/Items/MicrotransactionCurrency/HiddenItem1x3Ritual",
@@ -1432,12 +1120,20 @@ class ItemsParser(parser.BaseParser):
         # =================================================================
         # Currency items
         # =================================================================
+        "Metadata/Items/Currency/CurrencyItemisedProphecy",
         "Metadata/Items/Currency/CurrencyLabyrinthEnchant",
+        "Metadata/Items/Currency/CurrencyIncursionCorrupt1",
+        "Metadata/Items/Currency/CurrencyIncursionCorrupt2",
+        "Metadata/Items/Currency/CurrencyIncursionCorruptGem",
         "Metadata/Items/Currency/RunegraftMinionCannotAttack",
         "Metadata/Items/Currency/RunegraftMatchedSpeed",
         "Metadata/Items/Currency/RunegraftMinionCannotCast",
         "Metadata/Items/Currency/RunegraftTest",
         "Metadata/Items/Currency/AstrolabeSettlers",
+        "Metadata/Items/Currency/CurrencyAfflictionOrbGeneric",
+        "Metadata/Items/Currency/CurrencyAfflictionOrbProphecies",
+        "Metadata/Items/Currency/CurrencyAfflictionOrbHarbinger",
+        "Metadata/Items/Deepwater/DeepwaterAtlasEncounterCurrency",
         # =================================================================
         # Non-stackable resonators from before 3.8.0
         # =================================================================
@@ -1569,16 +1265,48 @@ class ItemsParser(parser.BaseParser):
         "Metadata/Items/AtlasUpgrades/AtlasUpgradeCraftable3_7",
         "Metadata/Items/AtlasUpgrades/AtlasUpgradeCraftable3_8",
         # =================================================================
-        # Mavenvitations (removed from the game in 3.17.0)
+        # Old Maven invitations (removed from the game in 3.17.0)
         # =================================================================
-        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight5",
-        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft5",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopLeft1",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopLeft2",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopLeft3",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopLeft4",
         "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopLeft5",
-        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight5",
-        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight5",
-        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft5",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopLeft1",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopLeft2",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopLeft3",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopLeft4",
         "Metadata/Items/MapFragments/Maven/MavenMapInsideTopLeft5",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopRight1",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopRight2",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopRight3",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideTopRight4",
         "Metadata/Items/MapFragments/Maven/MavenMapInsideTopRight5",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight1",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight2",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight3",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight4",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideTopRight5",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft1",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft2",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft3",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft4",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomLeft5",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft1",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft2",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft3",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft4",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomLeft5",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight1",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight2",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight3",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight4",
+        "Metadata/Items/MapFragments/Maven/MavenMapInsideBottomRight5",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight1",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight2",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight3",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight4",
+        "Metadata/Items/MapFragments/Maven/MavenMapOutsideBottomRight5",
         "Metadata/Items/MapFragments/Maven/MavenMapVoid1",
         "Metadata/Items/MapFragments/Maven/MavenMapVoid2",
         "Metadata/Items/MapFragments/Maven/MavenMapVoid3",
@@ -1640,12 +1368,86 @@ class ItemsParser(parser.BaseParser):
         "Metadata/Items/Relics/Relic3x1",
         "Metadata/Items/Relics/Relic4x1",
         # =================================================================
+        # Old scarabs (removed from the game in 3.24.0)
+        # =================================================================
+        "Metadata/Items/Scarabs/ScarabBreach1",
+        "Metadata/Items/Scarabs/ScarabBreach2",
+        "Metadata/Items/Scarabs/ScarabBreach3",
+        "Metadata/Items/Scarabs/ScarabBreach4",
+        "Metadata/Items/Scarabs/ScarabMaps1",
+        "Metadata/Items/Scarabs/ScarabMaps2",
+        "Metadata/Items/Scarabs/ScarabMaps3",
+        "Metadata/Items/Scarabs/ScarabMaps4",
+        "Metadata/Items/Scarabs/ScarabUniques1",
+        "Metadata/Items/Scarabs/ScarabUniques2",
+        "Metadata/Items/Scarabs/ScarabUniques3",
+        "Metadata/Items/Scarabs/ScarabUniques4",
+        "Metadata/Items/Scarabs/ScarabBeasts1",
+        "Metadata/Items/Scarabs/ScarabBeasts2",
+        "Metadata/Items/Scarabs/ScarabBeasts3",
+        "Metadata/Items/Scarabs/ScarabBeasts4",
+        "Metadata/Items/Scarabs/ScarabShaperRares1",
+        "Metadata/Items/Scarabs/ScarabShaperRares2",
+        "Metadata/Items/Scarabs/ScarabShaperRares3",
+        "Metadata/Items/Scarabs/ScarabShaperRares4",
+        "Metadata/Items/Scarabs/ScarabElderRares1",
+        "Metadata/Items/Scarabs/ScarabElderRares2",
+        "Metadata/Items/Scarabs/ScarabElderRares3",
+        "Metadata/Items/Scarabs/ScarabElderRares4",
+        "Metadata/Items/Scarabs/ScarabSulphite1",
+        "Metadata/Items/Scarabs/ScarabSulphite2",
+        "Metadata/Items/Scarabs/ScarabSulphite3",
+        "Metadata/Items/Scarabs/ScarabSulphite4",
+        "Metadata/Items/Scarabs/ScarabDivinationCards1",
+        "Metadata/Items/Scarabs/ScarabDivinationCards2",
+        "Metadata/Items/Scarabs/ScarabDivinationCards3",
+        "Metadata/Items/Scarabs/ScarabDivinationCards4",
+        "Metadata/Items/Scarabs/ScarabTorment1",
+        "Metadata/Items/Scarabs/ScarabTorment2",
+        "Metadata/Items/Scarabs/ScarabTorment3",
+        "Metadata/Items/Scarabs/ScarabTorment4",
+        "Metadata/Items/Scarabs/ScarabStrongbox1",
+        "Metadata/Items/Scarabs/ScarabStrongbox2",
+        "Metadata/Items/Scarabs/ScarabStrongbox3",
+        "Metadata/Items/Scarabs/ScarabStrongbox4",
+        "Metadata/Items/Scarabs/ScarabHarbinger1",
+        "Metadata/Items/Scarabs/ScarabHarbinger2",
+        "Metadata/Items/Scarabs/ScarabHarbinger3",
+        "Metadata/Items/Scarabs/ScarabHarbinger4",
+        "Metadata/Items/Scarabs/ScarabPerandus1",
+        "Metadata/Items/Scarabs/ScarabPerandus2",
+        "Metadata/Items/Scarabs/ScarabPerandus3",
+        "Metadata/Items/Scarabs/ScarabPerandus4",
+        "Metadata/Items/Scarabs/ScarabLegion1",
+        "Metadata/Items/Scarabs/ScarabLegion2",
+        "Metadata/Items/Scarabs/ScarabLegion3",
+        "Metadata/Items/Scarabs/ScarabLegion4",
+        "Metadata/Items/Scarabs/ScarabMetamorph1",
+        "Metadata/Items/Scarabs/ScarabMetamorph2",
+        "Metadata/Items/Scarabs/ScarabMetamorph3",
+        "Metadata/Items/Scarabs/ScarabMetamorph4",
+        "Metadata/Items/Scarabs/ScarabBlight1",
+        "Metadata/Items/Scarabs/ScarabBlight2",
+        "Metadata/Items/Scarabs/ScarabBlight3",
+        "Metadata/Items/Scarabs/ScarabBlight4",
+        "Metadata/Items/Scarabs/ScarabAbyss1",
+        "Metadata/Items/Scarabs/ScarabAbyss2",
+        "Metadata/Items/Scarabs/ScarabAbyss3",
+        "Metadata/Items/Scarabs/ScarabAbyss4",
+        # =================================================================
         # Map fragments
         # =================================================================
-        "Metadata/Items/Scarabs/ScarabMisc6",
-        "Metadata/Items/Scarabs/ScarabMisc7",
+        "Metadata/Items/MapFragments/CurrencyVaalFragments1Complete",
+        "Metadata/Items/MapFragments/CurrencyVaalFragments2Complete",
+        "Metadata/Items/MapFragments/CurrencyProphecyFragmentsComplete",
+        "Metadata/Items/MapFragments/CurrencyShaperFragmentsComplete",
+        "Metadata/Items/MapFragments/CurrencyElderFragmentsComplete",
+        "Metadata/Items/MapFragments/CurrencyUberElderFragmentsComplete",
+        "Metadata/Items/MapFragments/CurrencySirusFragmentsComplete",
         "Metadata/Items/MapFragments/RatsAllflamePack",
         "Metadata/Items/MapFragments/Maven/MavenMapAtlas5",
+        "Metadata/Items/Scarabs/ScarabMisc6",
+        "Metadata/Items/Scarabs/ScarabMisc7",
         # =================================================================
         # Corpse items
         # =================================================================
@@ -1696,22 +1498,27 @@ class ItemsParser(parser.BaseParser):
         "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTier10_3",
         "Metadata/Items/QuestItems/MapUpgrades/MapUpgradeTierTo16",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestFaustus1B",
+        "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestFaustus3",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestNenet1",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestNenet2",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestAdiyah3",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestKurai2",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestKurai3",
+        "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestKurai4",
         "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestWhakano3",
+        "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestIsla3",
         "Metadata/Items/Heist/QuestContracts/HeistContractQuestNenet1",
         "Metadata/Items/Heist/QuestContracts/HeistContractQuestNenetRepeatable",
-        "Metadata/Items/Heist/QuestItems/HeistFinalObjectiveQuestIsla3",
         "Metadata/Items/Masters/PirateTreasureKey",
         "Metadata/Items/MapFragments/Maven/MavenMapAtlas2",
         "Metadata/Items/MapFragments/Maven/MavenMapAtlas3",
         "Metadata/Items/MapFragments/Maven/MavenMapAtlas4",
+        "Metadata/Items/QuestItems/AllFlameLanternDeepwater",
         # =================================================================
         # Misc
         # =================================================================
+        "Metadata/Items/QuestItems/Labyrinth/Trinkets/VialOfPower",
+        "Metadata/Items/QuestItems/Labyrinth/Trinkets/BlackRoseOfAnarchy",
         "Metadata/Items/Heist/HeistEquipmentToolTest",
         "Metadata/Items/Heist/HeistEquipmentWeaponTest",
         "Metadata/Items/Heist/HeistEquipmentUtilityTest",
@@ -1721,13 +1528,7 @@ class ItemsParser(parser.BaseParser):
         "Metadata/Items/Armours/BodyArmours/BodyStrTemp",
         "Metadata/Items/Armours/Boots/BootsStrTemp",
         "Metadata/Items/Classic/MysteryLeaguestone",
-        "Metadata/Items/MapFragments/CurrencyVaalFragments1Complete",
-        "Metadata/Items/MapFragments/CurrencyVaalFragments2Complete",
-        "Metadata/Items/MapFragments/CurrencyProphecyFragmentsComplete",
-        "Metadata/Items/MapFragments/CurrencyShaperFragmentsComplete",
-        "Metadata/Items/MapFragments/CurrencyElderFragmentsComplete",
-        "Metadata/Items/MapFragments/CurrencyUberElderFragmentsComplete",
-        "Metadata/Items/MapFragments/CurrencySirusFragmentsComplete",
+        "Metadata/Items/Deepwater/ChartThermalVents",
     }
 
     # Skip items by class ID
@@ -1737,6 +1538,10 @@ class ItemsParser(parser.BaseParser):
         "HiddenItem",
         "MapKey",
         "RemovedItem",
+        "CocoonedItem",
+        "HideoutDoodad",
+        "Microtransaction",
+        "GiftBox",
     }
 
     _ITEM_SKIP_PATTERNS = {
@@ -1749,6 +1554,7 @@ class ItemsParser(parser.BaseParser):
         },
         "StackableCurrency": {
             r"Tencent",
+            r"RandomFossilOutcome",
         },
         "VaultKey": {
             r"Tencent",
@@ -1814,9 +1620,6 @@ class ItemsParser(parser.BaseParser):
 
     def _in_skip_list(self, item):
         return item and item["Id"] in self._skipped_items
-
-    def _skip_quest_contracts(self, infobox: OrderedDict, base_item_type):
-        return base_item_type.rowid not in self.rr["HeistContracts.dat64"].index["BaseItemTypesKey"]
 
     def _tattoo(self, infobox: OrderedDict, base_item_type):
         if "BaseItemTypesKey" not in self.rr["PassiveSkillTattoos.dat64"].index:
@@ -1939,8 +1742,9 @@ class ItemsParser(parser.BaseParser):
             infobox["name"] = ge_name
             infobox["base_item_id"] = infobox.pop("metadata_id")
 
-        infobox["gem_tags"] = ", ".join([gt["Tag"] for gt in gem_effect["GemTags"] if gt["Tag"]])
-        infobox["gem_style"] = gem_effect["ItemColor"]
+        infobox["gem_tags"] = parser.strip_keywords(
+            ", ".join([gt["Tag"] for gt in gem_effect["GemTags"] if gt["Tag"]])
+        )
 
         # Skill IDs
         primary_ge = gem_effect["GrantedEffect"]
@@ -2042,6 +1846,11 @@ class ItemsParser(parser.BaseParser):
                         parsed_args=parsed_args,
                     )
 
+        # Used later for shading the gem icon
+        if parsed_args.store_images:
+            infobox["primary_attribute"] = gem_effect["GrantedEffect"]["Attribute"]
+            infobox["gem_style"] = gem_effect["ItemColor"]
+
         return True
 
     def _type_level(self, infobox, base_item_type):
@@ -2050,6 +1859,7 @@ class ItemsParser(parser.BaseParser):
 
     _type_attribute = _type_factory(
         data_file="ComponentAttributeRequirements.dat64",
+        row_index="Id",
         data_mapping=(
             (
                 "ReqStr",
@@ -2073,7 +1883,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=False,
     )
 
     _type_armour = _type_factory(
@@ -2143,7 +1952,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     _type_shield = _type_factory(
@@ -2156,7 +1964,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     def _apply_flask_buffs(self, infobox, base_item_type, flasks):
@@ -2176,7 +1983,7 @@ class ItemsParser(parser.BaseParser):
                 full_result=True,
                 lang=self._language,
             )
-            infobox["buff_stat_text"] = "<br>".join(
+            infobox["buff_stat_text"] = self._format_lines(
                 [parser.make_inter_wiki_links(line) for line in tr.lines]
             )
 
@@ -2203,24 +2010,24 @@ class ItemsParser(parser.BaseParser):
                 {
                     "template": "flask_duration",
                     "condition": lambda v: v > 0,
-                    "format": lambda v: "{0:n}".format(v / 10),
+                    "format": lambda v: f"{v / 10:n}",
                 },
             ),
             (
                 "BuffDefinitionsKey",
                 {
                     "template": "buff_id",
-                    "condition": lambda v: v is not None,
+                    "condition": lambda v: v,
                     "format": lambda v: v["Id"],
                 },
             ),
         ),
-        row_index=True,
         function=_apply_flask_buffs,
     )
 
     _type_flask_charges = _type_factory(
         data_file="ComponentCharges.dat64",
+        row_index="Id",
         data_mapping=(
             (
                 "MaxCharges",
@@ -2235,7 +2042,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=False,
     )
 
     _type_weapon = _type_factory(
@@ -2245,14 +2051,14 @@ class ItemsParser(parser.BaseParser):
                 "Critical",
                 {
                     "template": "critical_strike_chance",
-                    "format": lambda v: "{0:n}".format(v / 100),
+                    "format": lambda v: f"{v / 100:n}",
                 },
             ),
             (
                 "Speed",
                 {
                     "template": "attack_speed",
-                    "format": lambda v: "{0:n}".format(round(1000 / v, 2)),
+                    "format": lambda v: f"{round(1000 / v, 2):n}",
                 },
             ),
             (
@@ -2271,27 +2077,52 @@ class ItemsParser(parser.BaseParser):
                 "RangeMax",
                 {
                     "template": "weapon_range",
-                    "format": lambda v: "{0:n}".format(v / 10),
+                    "format": lambda v: f"{v / 10:n}",
                 },
             ),
         ),
-        row_index=True,
+    )
+
+    _type_quest_item = _type_factory(
+        data_file="QuestItems.dat64",
+        index_column="Item",
+        data_mapping=(
+            (
+                "HelpText",
+                {
+                    "template": "help_text",
+                    "condition": lambda v: v,
+                    "format": lambda v: "<br>".join(v["Text"].splitlines()),
+                },
+            ),
+            (
+                "Description",
+                {
+                    "template": "description",
+                    "condition": lambda v: v,
+                    "format": lambda v: v["Text"],
+                },
+            ),
+        ),
+        fail_condition=True,
+        skip_warning=True,
     )
 
     def _currency_extra(self, infobox, base_item_type, currency):
         if infobox.get("description"):
-            infobox["description"] = parser.parse_and_handle_description_tags(
-                rr=self.rr,
-                text=infobox["description"],
+            infobox["description"] = parser.process_keywords(
+                "<br>".join(self._format_description_tags(infobox["description"]).splitlines())
             )
-
+            # Incubators have a numerical placeholder
+            if base_item_type["ItemClassesKey"]["Id"] == "IncubatorStackable":
+                infobox["description"] = infobox["description"].replace("{0}", "#")
         return True
 
     _type_currency = _type_factory(
         data_file="CurrencyItems.dat64",
         data_mapping=(
             (
-                "Stacks",
+                "StackSize",
                 {
                     "template": "stack_size",
                     "condition": None,
@@ -2309,7 +2140,7 @@ class ItemsParser(parser.BaseParser):
                 {
                     "template": "help_text",
                     "condition": lambda v: v,
-                    "format": lambda v: " ".join(v.splitlines()),
+                    "format": lambda v: "<br>".join(v.splitlines()),
                 },
             ),
             (
@@ -2320,7 +2151,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
         function=_currency_extra,
         fail_condition=True,
     )
@@ -2530,15 +2360,14 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
-    def _map_fragment_extra(self, infobox, base_item_type, map_fragment_mods):
-        if map_fragment_mods["ModsKeys"]:
+    def _map_fragment_extra(self, infobox, base_item_type, map_fragment):
+        if map_fragment["ModsKeys"]:
             i = 1
             while infobox.get("map_fragment_bonus%s" % i) is not None:
                 i += 1
-            for mod in map_fragment_mods["ModsKeys"]:
+            for mod in map_fragment["ModsKeys"]:
                 infobox["map_fragment_bonus%s" % i] = mod["Id"]
                 i += 1
 
@@ -2552,9 +2381,9 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
         function=_map_fragment_extra,
         fail_condition=True,
+        skip_warning=True,
     )
 
     def _essence_extra(self, infobox, base_item_type, essence):
@@ -2601,7 +2430,7 @@ class ItemsParser(parser.BaseParser):
             out[-1] += "<br>"
 
         def add_line(text, mod):
-            out.append("%s: %s" % (text, "".join(self._get_stats(mod=mod))))
+            out.append("%s: %s" % (text, "<br>".join(self._get_stats(mod=mod))))
 
         item_mod = essence["Display_Items_ModsKey"]
 
@@ -2680,12 +2509,11 @@ class ItemsParser(parser.BaseParser):
                 "Monster_ModsKeys",
                 {
                     "template": "essence_monster_modifier_ids",
-                    "format": lambda v: ", ".join([m["Id"] for m in v]),
                     "condition": lambda v: v,
+                    "format": lambda v: ", ".join([m["Id"] for m in v]),
                 },
             ),
         ),
-        row_index=True,
         function=_essence_extra,
         fail_condition=True,
         skip_warning=True,
@@ -2701,7 +2529,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
         fail_condition=True,
         skip_warning=True,
     )
@@ -2717,7 +2544,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     _type_incubator = _type_factory(
@@ -2731,7 +2557,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     def _harvest_seed_extra(self, infobox, base_item_type, harvest_object):
@@ -2825,7 +2650,6 @@ class ItemsParser(parser.BaseParser):
         ),
         function=_harvest_seed_extra,
         # fail_condition=True,
-        row_index=True,
     )
 
     def _harvest_plant_booster_extra(self, infobox, base_item_type, harvest_object):
@@ -2877,7 +2701,93 @@ class ItemsParser(parser.BaseParser):
         data_mapping=(),
         function=_harvest_plant_booster_extra,
         # fail_condition=True,
-        row_index=True,
+    )
+
+    def _determine_heist_objective_value(self, objective):
+        value = None
+        for row in self.rr["HeistObjectiveValueDescriptions.dat64"]:
+            value = row["Description"]
+            if row["ValueMultiLessThan"] > objective["ValueMulti"]:
+                break
+        return value
+
+    def _heist_objective_extra(self, infobox, base_item_type, objective):
+        value = self._determine_heist_objective_value(objective)
+        if value:
+            infobox["heist_target_value"] = value
+        return True
+
+    _type_heist_objective = _type_factory(
+        data_file="HeistObjectives.dat64",
+        index_column="BaseItemType",
+        data_mapping=(
+            (
+                "Client",
+                {
+                    "template": "heist_client",
+                    "condition": lambda v: v,
+                },
+            ),
+            (
+                "ValueMulti",
+                {
+                    "template": "heist_target_value_multi",
+                    "condition": lambda v: v > 0,
+                    "format": lambda v: f"{v:n}",
+                },
+            ),
+        ),
+        function=_heist_objective_extra,
+        fail_condition=True,
+        skip_warning=True,
+    )
+
+    def _heist_quest_contract_extra(self, infobox, base_item_type, quest_contract):
+        objective = quest_contract["HeistObjectivesKey"]
+        if objective["Client"]:
+            infobox["heist_client"] = objective["Client"]
+        target = objective["BaseItemType"]
+        infobox["heist_target"] = target["Name"]
+        value = self._determine_heist_objective_value(objective)
+        if value:
+            infobox["heist_target_value"] = value
+        if target["FlavourTextKey"]:
+            infobox["flavour_text"] = "<br>".join(
+                self._format_description_tags(target["FlavourTextKey"]["Text"]).splitlines()
+            )
+        return True
+
+    _heist_quest_contract = _type_factory(
+        data_file="HeistQuestContracts.dat64",
+        index_column="HeistContractsKey",
+        data_mapping=(
+            (
+                "HeistJobsKey",
+                {
+                    "template": "heist_required_job_id",
+                    "condition": lambda v: v,
+                    "format": lambda v: v["Id"],
+                },
+            ),
+            (
+                "JobLevel",
+                {
+                    "template": "heist_required_job_level",
+                    "condition": lambda v: v > 0,
+                },
+            ),
+            (
+                "HeistNPCsKey",
+                {
+                    "template": "heist_required_member",
+                    "condition": lambda v: v,
+                    "format": lambda v: ", ".join(npc["Name"] for npc in v),
+                },
+            ),
+        ),
+        function=_heist_quest_contract_extra,
+        fail_condition=True,
+        skip_warning=True,
     )
 
     _type_heist_contract = _type_factory(
@@ -2891,7 +2801,9 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
+        function=_heist_quest_contract,
+        fail_condition=True,
+        skip_warning=True,
     )
 
     _type_heist_equipment = _type_factory(
@@ -2913,7 +2825,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     _type_corpse = _type_factory(
@@ -2945,7 +2856,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     _type_tincture = _type_factory(
@@ -2956,20 +2866,19 @@ class ItemsParser(parser.BaseParser):
                 "DebuffInterval",
                 {
                     "template": "tincture_mana_burn",
-                    "format": lambda v: v / 1000,
                     "condition": lambda v: v,
+                    "format": lambda v: f"{v / 1000:n}",
                 },
             ),
             (
                 "Cooldown",
                 {
                     "template": "tincture_cooldown",
-                    "format": lambda v: f"{v / 1000:g}",
                     "condition": lambda v: v,
+                    "format": lambda v: f"{v / 1000:n}",
                 },
             ),
         ),
-        row_index=True,
     )
 
     _type_sentinel = _type_factory(
@@ -3005,7 +2914,6 @@ class ItemsParser(parser.BaseParser):
                 },
             ),
         ),
-        row_index=True,
     )
 
     def _type_graft(self, infobox, base_item_type):
@@ -3017,6 +2925,53 @@ class ItemsParser(parser.BaseParser):
                 infobox["graft_skill_id"] = gem_effect["GrantedEffect"]["Id"]
                 break
         return True
+
+    def _divination_card_extra(self, infobox, base_item_type, divcard):
+        parsed_args = self._parsed_args
+
+        # Save card art
+        if parsed_args.store_images:
+
+            def process(img: Image):
+                img = img.crop((0, 0, 390, 280))
+                return img
+
+            if divcard["ArtFile"]:
+                file_path = (
+                    divcard["ArtFile"].replace("Art/", "Art/Textures/Interface/2D/DivinationCards/")
+                    + ".dds"
+                )
+                file_name = base_item_type["Name"] + " card art.dds"
+                img = os.path.join(self._img_path, file_name)
+                try:
+                    self._write_dds(
+                        data=self.file_system.get_file(file_path),
+                        out_path=img,
+                        parsed_args=parsed_args,
+                        process=process,
+                    )
+                except FileNotFoundError:
+                    console(
+                        f"Divination card art file '{file_path}' could not be found",
+                        msg=Msg.warning,
+                    )
+        return True
+
+    _type_divination_card = _type_factory(
+        data_file="DivinationCardArt.dat64",
+        data_mapping=(
+            (
+                "Effects",
+                {
+                    "template": "card_effects",
+                    "condition": lambda v: len(v),
+                    "format": lambda v: "-".join(effect.name_lower for effect in v),
+                },
+            ),
+        ),
+        function=_divination_card_extra,
+        fail_condition=True,
+    )
 
     """
     This defines the expected data elements for an item class.
@@ -3147,7 +3102,7 @@ class ItemsParser(parser.BaseParser):
         "DelveStackableSocketableCurrency": (_type_currency,),
         "HideoutDoodad": (_type_currency, _type_hideout_doodad),
         "Microtransaction": (_type_currency, _type_microtransaction),
-        "DivinationCard": (_type_currency,),
+        "DivinationCard": (_type_currency, _type_divination_card),
         "IncubatorStackable": (_type_currency,),
         "HarvestSeed": (_type_currency, _type_harvest_seed),
         "HarvestPlantBooster": (_type_currency, _type_harvest_plant_booster),
@@ -3157,7 +3112,7 @@ class ItemsParser(parser.BaseParser):
         # 'LabyrinthMapItem': (),
         # Misc
         "MapFragment": (_type_currency, _type_map_fragment),
-        "QuestItem": (_skip_quest_contracts,),
+        "QuestItem": (_type_quest_item, _type_heist_contract),
         "AtlasRegionUpgradeItem": (),
         "MetamorphosisDNA": (),
         # heist league
@@ -3168,7 +3123,7 @@ class ItemsParser(parser.BaseParser):
         "HeistEquipmentReward": (_type_heist_equipment,),
         "HeistBlueprint": (),
         "Trinket": (),
-        "HeistObjective": (),
+        "HeistObjective": (_type_heist_objective,),
         "Breachstone": (_type_currency,),
         "ItemisedCorpse": (_type_corpse,),
         "NecropolisPack": (_allflame_ember,),
@@ -3183,18 +3138,8 @@ class ItemsParser(parser.BaseParser):
         "BrequelGraft": (_type_graft,),
     }
 
-    _conflict_active_skill_gems_map = {
-        "Metadata/Items/Gems/SkillGemArcticArmour": True,
-        "Metadata/Items/Gems/SkillGemPhaseRun": True,
-        "Metadata/Items/Gems/SkillGemLightningTendrils": True,
-    }
-
     def _conflict_active_skill_gems(self, infobox, base_item_type, rr, language):
-        appendix = self._conflict_active_skill_gems_map.get(base_item_type["Id"])
-        if appendix is None:
-            return
-        else:
-            return base_item_type["Name"]
+        return
 
     def _conflict_quest_items(self, infobox, base_item_type, rr, language):
         qid = base_item_type["Id"].replace("Metadata/Items/QuestItems/", "")
@@ -3397,9 +3342,8 @@ class ItemsParser(parser.BaseParser):
         infobox["size_x"] = base_item_type["Width"]
         infobox["size_y"] = base_item_type["Height"]
         if base_item_type["FlavourTextKey"]:
-            infobox["flavour_text"] = parser.parse_and_handle_description_tags(
-                rr=self.rr,
-                text=base_item_type["FlavourTextKey"]["Text"],
+            infobox["flavour_text"] = "<br>".join(
+                self._format_description_tags(base_item_type["FlavourTextKey"]["Text"]).splitlines()
             )
 
         if base_item_type["ItemClassesKey"]["Id"] not in self._IGNORE_DROP_LEVEL_CLASSES:
@@ -3429,7 +3373,7 @@ class ItemsParser(parser.BaseParser):
 
         help_text = ot["Base"].get("description_text")
         if help_text:
-            infobox["help_text"] = infobox["help_text"] = "<br>".join(
+            infobox["help_text"] = "<br>".join(
                 self.rr["ClientStrings.dat64"].index["Id"][help_text]["Text"].splitlines()
             )
 
@@ -3473,6 +3417,11 @@ class ItemsParser(parser.BaseParser):
                             msg=Msg.warning,
                         )
                         return
+                    console(
+                        'Name conflict resolved for item "%s" with name "%s": "%s"'
+                        % (m_id, infobox["name"], name),
+                        msg=Msg.warning,
+                    )
                 else:
                     console(
                         'Unresolved ambiguous item "%s" with name "%s". Skipping'
@@ -3480,11 +3429,10 @@ class ItemsParser(parser.BaseParser):
                         msg=Msg.warning,
                     )
                     console(
-                        'No name conflict handler defined for item class id "%s"' % cls_id,
+                        'No name conflict handler defined for item class ID "%s"' % cls_id,
                         msg=Msg.warning,
                     )
                     return
-
         return name
 
     def _export(self, parsed_args, items):
@@ -3617,8 +3565,6 @@ class ItemsParser(parser.BaseParser):
                         process=self._get_icon_process(infobox, base_item_type),
                     )
 
-                infobox.pop("gem_style", None)
-
         return r
 
     def _make_gem_overlays(self, parsed_args):
@@ -3666,19 +3612,13 @@ class ItemsParser(parser.BaseParser):
         return self._resize_icon
 
     def _get_gem_icon_process(self, infobox: dict[str, str], comp):
-        if "gem_style" not in infobox:
+        attr = infobox.pop("primary_attribute", None)
+        style = infobox.pop("gem_style", None)
+        if attr is None or style is None:
             return None
-        style = infobox.pop("gem_style")
 
         def shade(base, style):
-            attr_map = {
-                "str": "strength",
-                "dex": "dexterity",
-                "int": "intelligence",
-            }
-            attrs = {k.lower(): int(infobox.get(f"{v}_percent", 0)) for k, v in attr_map.items()}
-            attr = max(attrs, key=attrs.get)
-            const = SHADE_LUT[(attr, style)]
+            const = SHADE_LUT[(attr.abbr_lower, style)]
             base_rgba = _srgb_to_linear(np.float32(np.asarray(base)) / 255.0)
 
             # Shade algorithm:

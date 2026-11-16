@@ -31,17 +31,18 @@ See PyPoE/LICENSE
 # Imports
 # =============================================================================
 
-import re
-
 # Python
+import os
+import posixpath
+import re
 from collections import OrderedDict, defaultdict
 from functools import partial
 
+from PyPoE.cli.exporter.wiki import parser
 from PyPoE.cli.exporter.wiki.handler import ExporterHandler, ExporterResult
-from PyPoE.cli.exporter.wiki.parser import BaseParser, TagHandler
 
 # Self
-from PyPoE.poe.text import parse_description_tags
+from PyPoE.poe import poe1constants as constants
 
 # =============================================================================
 # Globals
@@ -150,7 +151,7 @@ class LuaFormatter:
 # =============================================================================
 
 
-class GenericLuaParser(BaseParser):
+class GenericLuaParser(parser.BaseParser):
     def _copy_from_keys(self, row, keys, out_data=None, index=None, rtr=False):
         copyrow = OrderedDict()
         for k, copy_data in keys:
@@ -176,6 +177,13 @@ class GenericLuaParser(BaseParser):
             else:
                 out_data.append(copyrow)
 
+    def _apply_column_map(self, row, col_map, append=None):
+        row_data = {}
+        parser.apply_simple_column_map(row_data, col_map, row)
+        if isinstance(append, list):
+            append.append(row_data)
+        return row_data
+
 
 class LuaHandler(ExporterHandler):
     def __init__(self, sub_parser):
@@ -185,7 +193,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "bestiary",
-            help="Extract bestiary information",
+            help="Extract Bestiary data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -195,7 +203,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "blight",
-            help="Extract blight information",
+            help="Extract Blight data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -205,7 +213,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "crafting_bench",
-            help="Extract crafting bench information",
+            help="Extract crafting bench data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -215,7 +223,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "delve",
-            help="Extract delve information",
+            help="Extract Delve data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -225,7 +233,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "harvest",
-            help="Extract harvest information (not covered by items)",
+            help="Extract Harvest data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -235,7 +243,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "heist",
-            help="Extract heist information (not covered by items)",
+            help="Extract Heist data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -245,7 +253,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "monster",
-            help="Extract monster information",
+            help="Extract monster data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -255,7 +263,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "packs",
-            help="Extract monster pack information",
+            help="Extract monster pack data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -265,7 +273,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "pantheon",
-            help="Extract pantheon information",
+            help="Extract pantheon data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -275,7 +283,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "synthesis",
-            help="Extract synthesis information",
+            help="Extract Synthesis data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -285,7 +293,7 @@ class LuaHandler(ExporterHandler):
 
         parser = lua_sub.add_parser(
             "ot",
-            help="Extract .ot file information",
+            help="Extract .ot file data (base stats)",
         )
         self.add_default_parsers(
             parser=parser,
@@ -294,8 +302,18 @@ class LuaHandler(ExporterHandler):
         )
 
         parser = lua_sub.add_parser(
+            "mercenaries",
+            help="Extract mercenaries data",
+        )
+        self.add_default_parsers(
+            parser=parser,
+            cls=MercenariesParser,
+            func=MercenariesParser.main,
+        )
+
+        parser = lua_sub.add_parser(
             "minimap",
-            help="Extract minimap icon information",
+            help="Extract minimap icon data",
         )
         self.add_default_parsers(
             parser=parser,
@@ -303,42 +321,49 @@ class LuaHandler(ExporterHandler):
             func=MinimapIconsParser.main,
         )
 
+    def add_default_parsers(self, *args, **kwargs):
+        super().add_default_parsers(*args, **kwargs)
+        self.add_image_arguments(kwargs["parser"])
+
 
 class MinimapIconsParser(GenericLuaParser):
     _files = [
         "MinimapIcons.datc64",
     ]
 
-    _COPY_KEYS_MINIMAP_ICONS = (
+    _MINIMAP_ICONS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
     )
 
     def main(self, parsed_args):
-        minimap_icons = []
-        minimap_icons_lookup = OrderedDict()
+        data = {
+            "minimap_icons": [],
+            "minimap_icons_lookup": {},
+        }
 
         for row in self.rr["MinimapIcons.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_MINIMAP_ICONS, minimap_icons)
+            self._apply_column_map(row, self._MINIMAP_ICONS_COLUMN_MAP, data["minimap_icons"])
 
             # Lua starts offsets at 1
-            minimap_icons_lookup[row["Id"]] = row.rowid + 1
+            data["minimap_icons_lookup"][row["Id"]] = row.rowid + 1
 
         r = ExporterResult()
-        for k in ("minimap_icons", "minimap_icons_lookup"):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()[k]),
-                out_file="%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Minimap/%s" % k,
+                        "page": "Module:Minimap/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Minimap data exporter",
             )
 
         return r
@@ -391,7 +416,7 @@ class OTStatsParser(GenericLuaParser):
                             ("name", data["fn"]),
                             ("id", stat),
                             ("value", value),
-                            ("stat_text", txt or ""),
+                            ("stat_text", parser.strip_keywords(txt) or ""),
                         )
                     )
                 )
@@ -405,143 +430,152 @@ class OTStatsParser(GenericLuaParser):
                         "condition": None,
                     }
                 ],
+                wiki_message="OT stats exporter",
             )
 
         return r
 
 
 class BestiaryParser(GenericLuaParser):
-    _files = [
-        # pretty much chain loads everything we need
-        "BestiaryRecipes.datc64",
-        "ClientStrings.datc64",
-    ]
+    _files = ["BestiaryRecipes.datc64", "BestiaryRecipeComponent.datc64"]
 
-    _COPY_KEYS_BESTIARY = (
+    _BESTIARY_RECIPES_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "Category",
             {
-                "key": "header",
-                "value": lambda v: v["Text"],
+                "template": "header",
+                "format": lambda v: v["Text"],
             },
         ),
         (
             "Description",
             {
-                "key": "subheader",
+                "template": "subheader",
             },
         ),
         (
             "Notes",
             {
-                "key": "notes",
+                "template": "notes",
+                "condition": lambda v: v,
             },
         ),
         (
             "GameMode",
             {
-                "key": "game_mode",
+                "template": "game_mode",
             },
         ),
     )
 
-    _COPY_KEYS_BESTIARY_COMPONENTS = (
+    _BESTIARY_COMPONENTS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "MinLevel",
             {
-                "key": "min_level",
+                "template": "min_level",
             },
         ),
         (
             "BestiaryFamiliesKey",
             {
-                "key": "family",
-                "value": lambda x: x["Name"],
+                "template": "family",
+                "condition": lambda v: v,
+                "format": lambda v: v["Name"],
             },
         ),
         (
             "BestiaryGroupsKey",
             {
-                "key": "beast_group",
-                "value": lambda x: x["Name"],
+                "template": "beast_group",
+                "condition": lambda v: v,
+                "format": lambda v: v["Name"],
             },
         ),
         (
             "BestiaryGenusKey",
             {
-                "key": "genus",
-                "value": lambda x: x["Name"],
+                "template": "genus",
+                "condition": lambda v: v,
+                "format": lambda v: v["Name"],
             },
         ),
         (
             "ModsKey",
             {
-                "key": "mod_id",
-                "value": lambda x: x["Id"],
+                "template": "mod_id",
+                "condition": lambda v: v,
+                "format": lambda v: v["Id"],
             },
         ),
         (
             "BestiaryCapturableMonstersKey",
             {
-                "key": "monster",
-                "value": lambda x: x["MonsterVarietiesKey"]["Name"],
+                "template": "monster",
+                "condition": lambda v: v,
+                "format": lambda v: v["MonsterVarietiesKey"]["Name"],
+            },
+        ),
+        (
+            "BeastRarity",
+            {
+                "template": "rarity",
+                "condition": lambda v: v,
+                "format": lambda v: v["Text"],
             },
         ),
     )
 
     def main(self, parsed_args):
-        recipes = []
-        components = []
+        data = {
+            "recipes": [],
+            "components": [],
+            "recipe_components": [],
+        }
+
         recipe_components_temp = defaultdict(lambda: defaultdict(int))
 
         for row in self.rr["BestiaryRecipes.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_BESTIARY, recipes)
-            for value in row["BestiaryRecipeComponentKeys"]:
-                recipe_components_temp[row["Id"]][value["Id"]] += 1
+            self._apply_column_map(row, self._BESTIARY_RECIPES_COLUMN_MAP, data["recipes"])
+            for component in row["BestiaryRecipeComponentKeys"]:
+                recipe_components_temp[row["Id"]][component["Id"]] += 1
 
         for row in self.rr["BestiaryRecipeComponent.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_BESTIARY_COMPONENTS, components)
-            if row["BeastRarity"]:
-                display_string = "ItemDisplayString" + row["BeastRarity"]["Id"]
-                client_strings = self.rr["ClientStrings.dat64"].index["Id"]
-                components[-1]["rarity"] = client_strings[display_string]["Text"]
+            self._apply_column_map(row, self._BESTIARY_COMPONENTS_COLUMN_MAP, data["components"])
 
-        recipe_components = []
-        for recipe_id, data in recipe_components_temp.items():
-            for component_id, amount in data.items():
-                recipe_components.append(
-                    OrderedDict(
-                        (
-                            ("recipe_id", recipe_id),
-                            ("component_id", component_id),
-                            ("amount", amount),
-                        )
-                    )
+        for recipe_id, component in recipe_components_temp.items():
+            for component_id, amount in component.items():
+                data["recipe_components"].append(
+                    {
+                        "recipe_id": recipe_id,
+                        "component_id": component_id,
+                        "amount": amount,
+                    }
                 )
 
         r = ExporterResult()
-        for k in ("recipes", "components", "recipe_components"):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()[k]),
-                out_file="bestiary_%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="bestiary_%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Bestiary/%s" % k,
+                        "page": "Module:Bestiary/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Bestiary data exporter",
             )
 
         return r
@@ -551,120 +585,126 @@ class BlightParser(GenericLuaParser):
     _files = [
         "BlightCraftingRecipes.datc64",
         "BlightTowers.datc64",
+        "BlightTowersPerLevel.datc64",
     ]
 
-    _COPY_KEYS_CRAFTING_RECIPES = (
+    _BLIGHT_CRAFTING_RECIPES_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "BlightCraftingResultsKey",
             {
-                "key": "modifier_id",
-                "value": lambda v: v["ModsKey"]["Id"] if v["ModsKey"] else None,
+                "template": "modifier_id",
+                "condition": lambda v: v["Mod"],
+                "format": lambda v: v["Mod"]["Id"],
             },
         ),
         (
             "BlightCraftingResultsKey",
             {
-                "key": "passive_id",
-                "value": lambda v: v["PassiveSkillsKey"]["Id"] if v["PassiveSkillsKey"] else None,
+                "template": "passive_id",
+                "condition": lambda v: v["PassiveSkill"],
+                "format": lambda v: v["PassiveSkill"]["Id"],
             },
         ),
         (
             "BlightCraftingTypesKey",
             {
-                "key": "type",
-                "value": lambda v: v["Id"],
+                "template": "type",
+                "format": lambda v: v["Id"],
             },
         ),
     )
 
-    _COPY_KEYS_BLIGHT_TOWERS = (
+    _BLIGHT_TOWERS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "Name",
             {
-                "key": "name",
+                "template": "name",
             },
         ),
         (
             "Description",
             {
-                "key": "description",
+                "template": "description",
             },
         ),
         (
             "Tier",
             {
-                "key": "tier",
+                "template": "tier",
+                "condition": lambda v: v,
             },
         ),
         (
             "Radius",
             {
-                "key": "radius",
+                "template": "radius",
             },
         ),
         (
             "Icon",
             {
-                "key": "icon",
-                "value": lambda v: (
+                "template": "icon",
+                "condition": lambda v: v.startswith("Art/2DArt/UIImages/InGame/Blight/Tower Icons"),
+                "format": lambda v: (
                     "File:%s tower icon.png"
                     % v.replace("Art/2DArt/UIImages/InGame/Blight/Tower Icons/Icon", "")
-                    if v.startswith("Art/2DArt/UIImages/InGame/Blight/Tower Icons")
-                    else None
                 ),
             },
         ),
     )
 
     def main(self, parsed_args):
-        blight_crafting_recipes = []
-        blight_crafting_recipes_items = []
-        blight_towers = []
-
-        self.rr["BlightTowersPerLevel.dat64"].build_index("BlightTowersKey")
+        data = {
+            "blight_crafting_recipes": [],
+            "blight_crafting_recipes_items": [],
+            "blight_towers": [],
+        }
 
         for row in self.rr["BlightCraftingRecipes.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_CRAFTING_RECIPES, blight_crafting_recipes)
+            self._apply_column_map(
+                row, self._BLIGHT_CRAFTING_RECIPES_COLUMN_MAP, data["blight_crafting_recipes"]
+            )
+            for i, oil in enumerate(row["BlightCraftingItemsKeys"], start=1):
+                recipe_items_data = {
+                    "ordinal": i,
+                    "recipe_id": row["Id"],
+                    "item_id": oil["BaseItemTypesKey"]["Id"],
+                }
+                data["blight_crafting_recipes_items"].append(recipe_items_data)
 
-            for i, blight_crafting_item in enumerate(row["BlightCraftingItemsKeys"], start=1):
-                blight_crafting_recipes_items.append(
-                    OrderedDict(
-                        (
-                            ("ordinal", i),
-                            ("recipe_id", row["Id"]),
-                            ("item_id", blight_crafting_item["BaseItemTypesKey"]["Id"]),
-                        )
-                    )
-                )
-
+        if "BlightTowersKey" not in self.rr["BlightTowersPerLevel.dat64"].index:
+            self.rr["BlightTowersPerLevel.dat64"].build_index("BlightTowersKey")
         for row in self.rr["BlightTowers.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_BLIGHT_TOWERS, blight_towers)
+            row_data = self._apply_column_map(
+                row, self._BLIGHT_TOWERS_COLUMN_MAP, data["blight_towers"]
+            )
             per_level = self.rr["BlightTowersPerLevel.dat64"].index["BlightTowersKey"][row]
-            blight_towers[-1]["cost"] = per_level[0]["Cost"]
+            row_data["cost"] = per_level[0]["Cost"]
 
         r = ExporterResult()
-        for k in ("crafting_recipes", "crafting_recipes_items", "towers"):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()["blight_" + k]),
-                out_file="blight_%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Blight/blight_%s" % k,
+                        "page": "Module:Blight/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Blight data exporter",
             )
 
         return r
@@ -672,254 +712,252 @@ class BlightParser(GenericLuaParser):
 
 class DelveParser(GenericLuaParser):
     _files = [
-        "DelveCraftingModifiers.datc64",
         "DelveLevelScaling.datc64",
         "DelveResourcePerLevel.datc64",
         "DelveUpgrades.datc64",
+        "DelveCraftingModifiers.datc64",
     ]
 
-    _COPY_KEYS_DELVE_LEVEL_SCALING = (
+    _DELVE_LEVEL_SCALING_COLUMN_MAP = (
         (
             "Depth",
             {
-                "key": "depth",
+                "template": "depth",
             },
         ),
         (
             "MonsterLevel",
             {
-                "key": "monster_level",
+                "template": "monster_level",
             },
         ),
         (
             "SulphiteCost",
             {
-                "key": "sulphite_cost",
+                "template": "sulphite_cost",
             },
         ),
         (
             "DarknessResistance",
             {
-                "key": "darkness_resistance",
+                "template": "darkness_resistance",
             },
         ),
         (
             "LightRadius",
             {
-                "key": "light_radius",
+                "template": "light_radius",
             },
         ),
         (
             "MoreMonsterLife",
             {
-                "key": "monster_life",
+                "template": "monster_life",
             },
         ),
         (
             "MoreMonsterDamage",
             {
-                "key": "monster_damage",
+                "template": "monster_damage",
             },
         ),
     )
 
-    _COPY_KEYS_DELVE_RESOURCES_PER_LEVEL = (
+    _DELVE_RESOURCE_PER_LEVEL_COLUMN_MAP = (
         (
             "AreaLevel",
             {
-                "key": "area_level",
+                "template": "area_level",
             },
         ),
         (
             "Sulphite",
             {
-                "key": "sulphite",
+                "template": "sulphite",
             },
         ),
     )
 
-    _COPY_KEYS_DELVE_UPGRADES = (
+    _DELVE_UPGRADES_COLUMN_MAP = (
         (
             "DelveUpgradeTypeKey",
             {
-                "key": "type",
-                "value": lambda x: x.name.lower(),
+                "template": "type",
+                "format": lambda v: v.name.lower(),
             },
         ),
         (
             "UpgradeLevel",
             {
-                "key": "level",
+                "template": "level",
             },
         ),
     )
 
-    _COPY_KEYS_DELVE_CRAFTING_MODIFIERS = (
+    _DELVE_CRAFTING_MODIFIERS_COLUMN_MAP = (
         (
             "BaseItemTypesKey",
             {
-                "key": "base_item_id",
-                "value": lambda x: x["Id"],
+                "template": "base_item_id",
+                "format": lambda v: v["Id"],
             },
         ),
         (
             "AddedModsKeys",
             {
-                "key": "added_modifier_ids",
-                "value": lambda x: [v["Id"] for v in x],
+                "template": "added_modifier_ids",
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "ForcedAddModsKeys",
             {
-                "key": "forced_modifier_ids",
-                "value": lambda x: [v["Id"] for v in x],
+                "template": "forced_modifier_ids",
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "SellPrice_ModsKeys",
             {
-                "key": "sell_price_modifier_ids",
-                "value": lambda x: [v["Id"] for v in x],
+                "template": "sell_price_modifier_ids",
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "ForbiddenDelveCraftingTagsKeys",
             {
-                "key": "forbidden_tags",
-                "value": lambda x: [v["TagsKey"]["Id"] for v in x],
+                "template": "forbidden_tags",
+                "format": lambda v: [r["TagsKey"]["Id"] for r in v],
             },
         ),
         (
             "AllowedDelveCraftingTagsKeys",
             {
-                "key": "allowed_tags",
-                "value": lambda x: [v["TagsKey"]["Id"] for v in x],
+                "template": "allowed_tags",
+                "format": lambda v: [r["TagsKey"]["Id"] for r in v],
             },
         ),
         (
             "CorruptedEssenceChance",
             {
-                "key": "corrupted_essence_chance",
+                "template": "corrupted_essence_chance",
             },
         ),
         (
             "CanMirrorItem",
             {
-                "key": "can_mirror",
+                "template": "can_mirror",
             },
         ),
         (
             "CanImproveQuality",
             {
-                "key": "can_quality",
+                "template": "can_quality",
             },
         ),
         (
             "CanRollWhiteSockets",
             {
-                "key": "can_roll_white_sockets",
+                "template": "can_roll_white_sockets",
             },
         ),
         (
             "HasLuckyRolls",
             {
-                "key": "is_lucky",
+                "template": "is_lucky",
             },
         ),
     )
 
     def main(self, parsed_args):
-        delve_level_scaling = []
-        delve_resources_per_level = []
-        delve_upgrades = []
-        delve_upgrade_stats = []
-        fossils = []
-        fossil_weights = []
+        data = {
+            "delve_level_scaling": [],
+            "delve_resources_per_level": [],
+            "delve_upgrades": [],
+            "delve_upgrade_stats": [],
+            "fossils": [],
+            "fossil_weights": [],
+        }
 
         for row in self.rr["DelveLevelScaling.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_DELVE_LEVEL_SCALING, delve_level_scaling)
+            self._apply_column_map(
+                row, self._DELVE_LEVEL_SCALING_COLUMN_MAP, data["delve_level_scaling"]
+            )
 
         for row in self.rr["DelveResourcePerLevel.dat64"]:
-            self._copy_from_keys(
-                row, self._COPY_KEYS_DELVE_RESOURCES_PER_LEVEL, delve_resources_per_level
+            self._apply_column_map(
+                row, self._DELVE_RESOURCE_PER_LEVEL_COLUMN_MAP, data["delve_resources_per_level"]
             )
 
         for row in self.rr["DelveUpgrades.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_DELVE_UPGRADES, delve_upgrades)
-            delve_upgrades[-1]["cost"] = row["Cost"]
-
+            row_data = self._apply_column_map(
+                row, self._DELVE_UPGRADES_COLUMN_MAP, data["delve_upgrades"]
+            )
+            row_data["cost"] = row["Cost"]
             for i, (stat, value) in enumerate(row["Stats"]):
-                self._copy_from_keys(row, self._COPY_KEYS_DELVE_UPGRADES, delve_upgrade_stats)
-                delve_upgrade_stats[-1]["id"] = stat["Id"]
-                delve_upgrade_stats[-1]["value"] = value
+                row_data = self._apply_column_map(
+                    row, self._DELVE_UPGRADES_COLUMN_MAP, data["delve_upgrade_stats"]
+                )
+                row_data["id"] = stat["Id"]
+                row_data["value"] = value
 
         for row in self.rr["DelveCraftingModifiers.dat64"]:
             # Ignore all the weird RandomFossileOutcome items.
             if "RandomFossilOutcome" in row["BaseItemTypesKey"]["Id"]:
                 continue
-            self._copy_from_keys(row, self._COPY_KEYS_DELVE_CRAFTING_MODIFIERS, fossils)
-
+            self._apply_column_map(row, self._DELVE_CRAFTING_MODIFIERS_COLUMN_MAP, data["fossils"])
             for data_prefix, data_type in (
                 ("NegativeWeight", "override"),
                 ("Weight", "added"),
             ):
                 for i, tag in enumerate(row["%s_TagsKeys" % data_prefix]):
-                    entry = OrderedDict()
-                    entry["base_item_id"] = row["BaseItemTypesKey"]["Id"]
-                    entry["type"] = data_type
-                    entry["ordinal"] = i
-                    entry["tag"] = tag["Id"]
-                    entry["weight"] = row["%s_Values" % data_prefix][i]
-                    fossil_weights.append(entry)
+                    weight_data = {
+                        "base_item_id": row["BaseItemTypesKey"]["Id"],
+                        "type": data_type,
+                        "ordinal": i,
+                        "tag": tag["Id"],
+                        "weight": row["%s_Values" % data_prefix][i],
+                    }
+                    data["fossil_weights"].append(weight_data)
 
         r = ExporterResult()
-        for k in (
-            "delve_level_scaling",
-            "delve_resources_per_level",
-            "delve_upgrades",
-            "delve_upgrade_stats",
-            "fossils",
-            "fossil_weights",
-        ):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()[k]),
-                out_file="%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Delve/%s" % k,
+                        "page": "Module:Delve/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Delve data exporter",
             )
 
         return r
 
 
-class HarvestTagHandler(TagHandler):
+class HarvestTagHandler(parser.TagHandler):
+    def __init__(self, rr):
+        super().__init__(rr)
+
+    _basic_handler = parser.TagHandler._basic_handler
+
     tag_handlers = {
-        "white": partial(TagHandler._basic_handler, tid="white"),
-        "craftingred": partial(TagHandler._basic_handler, tid="red"),
-        "craftingblue": partial(TagHandler._basic_handler, tid="blue"),
-        "craftinggreen": partial(TagHandler._basic_handler, tid="green"),
-        "craftingcaster": partial(TagHandler._basic_handler, tid="purple"),
-        "craftingphysical": partial(TagHandler._basic_handler, tid="tan"),
-        "craftingfire": partial(TagHandler._basic_handler, tid="orange"),
-        "craftinglightning": partial(TagHandler._basic_handler, tid="yellow"),
-        "craftingcold": partial(TagHandler._basic_handler, tid="blue"),
-        "craftingchaos": partial(TagHandler._basic_handler, tid="purple"),
-        "unique": partial(TagHandler._basic_handler, tid="orange"),
-        "magic": partial(TagHandler._basic_handler, tid="blue"),
-        "rare": partial(TagHandler._basic_handler, tid="yellow"),
-        "craftingspeed": partial(TagHandler._basic_handler, tid="green"),
-        "craftingattack": partial(TagHandler._basic_handler, tid="white"),
-        "craftinglife": partial(TagHandler._basic_handler, tid="red"),
-        "craftingcrit": partial(TagHandler._basic_handler, tid="blue"),
-        "craftingdefences": partial(TagHandler._basic_handler, tid="white"),
-        "enchanted": partial(TagHandler._basic_handler, tid="white"),
-        "fuchsia": partial(TagHandler._basic_handler, tid="magenta"),
-        "yellow": partial(TagHandler._basic_handler, tid="yellow"),
-        "aqua": partial(TagHandler._basic_handler, tid="cyan"),
+        "white": partial(_basic_handler, tid="white"),
+        "craftingfire": partial(_basic_handler, tid="craftingfire"),
+        "craftingcold": partial(_basic_handler, tid="craftingcold"),
+        "craftinglightning": partial(_basic_handler, tid="craftinglightning"),
+        "craftingphysical": partial(_basic_handler, tid="craftingphysical"),
+        "craftinglife": partial(_basic_handler, tid="craftinglife"),
+        "craftingdefences": partial(_basic_handler, tid="craftingdefences"),
+        "craftingchaos": partial(_basic_handler, tid="craftingchaos"),
+        "craftingattack": partial(_basic_handler, tid="craftingattack"),
+        "craftingcaster": partial(_basic_handler, tid="craftingcaster"),
+        "craftingspeed": partial(_basic_handler, tid="craftingspeed"),
+        "craftingcrit": partial(_basic_handler, tid="craftingcrit"),
+        "rare": partial(_basic_handler, tid="rare"),
+        "enchanted": partial(_basic_handler, tid="enchanted"),
     }
 
 
@@ -928,61 +966,94 @@ class HarvestParser(GenericLuaParser):
         "HarvestCraftOptions.datc64",
     ]
 
-    _COPY_KEYS_HARVEST_CRAFT_OPTIONS = (
+    _HARVEST_CRAFT_OPTIONS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "Text",
             {
-                "key": "text",
+                "template": "effect_html",
             },
         ),
         (
-            "HarvestCraftTiersKey",
+            "Tier",
             {
-                "key": "tier",
-                "value": lambda v: v.rowid,
+                "template": "tier",
+                "format": lambda v: v.rowid,
             },
         ),
-        ("Description", {"key": "effect"}),
-        ("IsEnchant", {"key": "is_enchant"}),
         (
-            "LifeforceCostType",
+            "Description",
             {
-                "key": "cost_lifeforce_type",
+                "template": "effect",
             },
         ),
-        ("LifeforceCost", {"key": "cost_lifeforce"}),
-        ("SacredBlossomCost", {"key": "cost_sacred"}),
-        ("Command", {"key": "command"}),
-        ("Parameters", {"key": "parameters", "value": lambda v: v.split()}),
+        (
+            "IsEnchant",
+            {
+                "template": "is_enchant",
+            },
+        ),
+        (
+            "SacredCost",
+            {
+                "template": "cost_sacred",
+            },
+        ),
+        (
+            "IsProportionalToStackSize",
+            {
+                "template": "is_proportional_to_stack_size",
+            },
+        ),
+        (
+            "GameMode",
+            {
+                "template": "game_mode",
+            },
+        ),
+        (
+            "RancourCost",
+            {
+                "template": "cost_rancour",
+            },
+        ),
     )
 
     def main(self, parsed_args):
-        tag_handler = HarvestTagHandler(rr=self.rr)
-        harvest_craft_options = []
+        data = {
+            "harvest_crafting_options": [],
+        }
 
         for row in self.rr["HarvestCraftOptions.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_HARVEST_CRAFT_OPTIONS, harvest_craft_options)
-            harvest_craft_options[-1]["text"] = parse_description_tags(
-                harvest_craft_options[-1]["text"]
-            ).handle_tags(tag_handler.tag_handlers)
+            row_data = self._apply_column_map(
+                row, self._HARVEST_CRAFT_OPTIONS_COLUMN_MAP, data["harvest_crafting_options"]
+            )
+            row_data["ordinal"] = row.rowid
+            row_data["effect_html"] = self._format_description_tags(
+                row_data["effect_html"], HarvestTagHandler(self.rr)
+            )
+            for v in constants.LIFEFORCE_TYPES:
+                row_data["cost_%s" % v.name_lower] = (
+                    row["LifeforceCost"] if row["LifeforceType"].id == v.id else 0
+                )
 
         r = ExporterResult()
-        for k in ("harvest_craft_options",):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()[k]),
-                out_file="%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Harvest/%s" % k,
+                        "page": "Module:Harvest/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Harvest data exporter",
             )
 
         return r
@@ -995,139 +1066,156 @@ class HeistParser(GenericLuaParser):
         "HeistNPCs.datc64",
     ]
 
-    _COPY_KEYS_HEIST_AREAS = (
+    _HEIST_AREAS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "WorldAreasKeys",
             {
-                "key": "area_ids",
-                "value": lambda v: ",".join([r["Id"] for r in v]),
+                "template": "area_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "HeistJobsKeys",
             {
-                "key": "job_ids",
-                "value": lambda v: ",".join([r["Id"] for r in v]),
+                "template": "job_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "Contract_BaseItemTypesKey",
             {
-                "key": "contract_id",
-                "value": lambda v: v["Id"],
+                "template": "contract_id",
+                "format": lambda v: v["Id"],
             },
         ),
         (
             "Blueprint_BaseItemTypesKey",
             {
-                "key": "blueprint_id",
-                "value": lambda v: v["Id"],
+                "template": "blueprint_id",
+                "format": lambda v: v["Id"],
             },
         ),
         (
             "ClientStringsKey",
             {
-                "key": "reward_text",
-                "value": lambda v: v["Text"],
+                "template": "reward_text",
+                "format": lambda v: v["Text"],
             },
         ),
     )
 
-    _COPY_KEYS_HEIST_JOBS = (
+    _HEIST_JOBS_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "Name",
             {
-                "key": "name",
+                "template": "name",
             },
         ),
     )
 
-    _COPY_KEYS_HEIST_NPCS = (
+    _HEIST_NPCS_COLUMN_MAP = (
         (
             "MonsterVarietiesKey",
             {
-                "key": "id",
-                "value": lambda v: v["Id"],
+                "template": "id",
+                "format": lambda v: v["Id"],
             },
         ),
         (
             "Name",
             {
-                "key": "name",
+                "template": "name",
             },
         ),
         (
             "HeistJobsKey",
             {
-                "key": "job_id",
-                "value": lambda v: v["Id"],
+                "template": "job_id",
+                "condition": lambda v: v,
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "Inventory",
+            {
+                "template": "can_equip",
+                "condition": lambda v: v,
+                "format": lambda v: bool(v),
             },
         ),
     )
 
     def main(self, parsed_args):
-        heist_areas = []
+        data = {
+            "heist_areas": [],
+            "heist_jobs": [],
+            "heist_npcs": [],
+            "heist_npc_skills": [],
+            "heist_npc_stats": [],
+        }
+
         for row in self.rr["HeistAreas.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_HEIST_AREAS, heist_areas)
+            self._apply_column_map(row, self._HEIST_AREAS_COLUMN_MAP, data["heist_areas"])
 
-        heist_jobs = []
         for row in self.rr["HeistJobs.dat64"]:
-            self._copy_from_keys(row, self._COPY_KEYS_HEIST_JOBS, heist_jobs)
+            self._apply_column_map(row, self._HEIST_JOBS_COLUMN_MAP, data["heist_jobs"])
 
-        heist_npcs = []
-        heist_npc_skills = []
-        heist_npc_stats = []
         for row in self.rr["HeistNPCs.dat64"]:
+            row_data = self._apply_column_map(row, self._HEIST_NPCS_COLUMN_MAP, data["heist_npcs"])
             mid = row["MonsterVarietiesKey"]["Id"]
-            self._copy_from_keys(row, self._COPY_KEYS_HEIST_NPCS, heist_npcs)
 
             skills = [r["Id"] for r in row["SkillLevel_HeistJobsKeys"]]
             for i, job_id in enumerate(skills):
-                entry = OrderedDict()
-                entry["npc_id"] = mid
-                entry["job_id"] = job_id
-                entry["level"] = row["SkillLevel_Values"][i]
-                # StatValues2?
-                heist_npc_skills.append(entry)
+                skill_data = {
+                    "npc_id": mid,
+                    "job_id": job_id,
+                    "level": row["SkillLevel_Values"][i],
+                }
+                data["heist_npc_skills"].append(skill_data)
 
             stats = [r["StatsKey"]["Id"] for r in row["HeistNPCStatsKeys"]]
             for i, stat_id in enumerate(stats):
-                entry = OrderedDict()
-                entry["npc_id"] = mid
-                entry["stat_id"] = stat_id
-                entry["value"] = row["StatValues"][i]
-                # StatValues2?
-                heist_npc_stats.append(entry)
+                stat_data = {
+                    "npc_id": mid,
+                    "stat_id": stat_id,
+                    "value": row["StatValues"][i],
+                    # StatValues2 might be for Ruthless
+                }
+                data["heist_npc_stats"].append(stat_data)
 
-            heist_npcs[-1]["stat_text"] = self._format_tr(
-                self.tc["stat_descriptions.txt"].get_translation(
-                    stats, [int(v) for v in row["StatValues"]], full_result=True
+            if stats:
+                row_data["stat_text"] = self._format_tr(
+                    self.tc["stat_descriptions.txt"].get_translation(
+                        stats, [int(v) for v in row["StatValues"]], full_result=True
+                    )
                 )
-            )
 
         r = ExporterResult()
-        for k in ("heist_areas", "heist_jobs", "heist_npcs", "heist_npc_skills", "heist_npc_stats"):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()[k]),
-                out_file="%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Heist/%s" % k,
+                        "page": "Module:Heist/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Heist data exporter",
             )
 
         return r
@@ -1139,218 +1227,197 @@ class PantheonParser(GenericLuaParser):
         "PantheonSouls.datc64",
     ]
 
-    _COPY_KEYS_PANTHEON = (
+    _PANTHEON_COLUMN_MAP = (
         (
             "Id",
             {
-                "key": "id",
+                "template": "id",
             },
         ),
         (
             "IsMajorGod",
             {
-                "key": "is_major_god",
+                "template": "is_major_god",
             },
         ),
     )
 
-    _COPY_KEYS_PANTHEON_SOULS = (
+    _PANTHEON_SOULS_COLUMN_MAP = (
         (
-            "WorldAreasKey",
+            "WorldArea",
             {
-                "key": "target_area_id",
-                "value": lambda v: v["Id"],
+                "template": "target_area_id",
+                "format": lambda v: v["Id"],
             },
         ),
         (
-            "MonsterVarietiesKey",
+            "CapturedMonster",
             {
-                "key": "target_monster_id",
-                "value": lambda v: v[0]["Id"],
+                "template": "target_monster_id",
+                "format": lambda v: v[0]["Id"],
             },
         ),
         (
-            "MonsterVarietiesKey",
+            "CapturedVessel",
             {
-                "key": "name",
-                "value": lambda v: v[0]["Name"],
-            },
-        ),
-        (
-            "BossDescription",
-            {
-                "key": "name",
-                "value": lambda v: v,
-            },
-        ),
-        (
-            "BaseItemTypesKey",
-            {
-                "key": "item_id",
-                "value": lambda v: v["Id"],
+                "template": "item_id",
+                "format": lambda v: v["Id"],
             },
         ),
     )
 
     def main(self, parsed_args):
-        self.rr["PantheonSouls.dat64"].build_index("PantheonPanelLayoutKey")
+        data = {
+            "pantheon": [],
+            "pantheon_souls": [],
+            "pantheon_stats": [],
+        }
 
-        pantheon = []
-        pantheon_souls = []
-        pantheon_stats = []
-
+        if "PanelLayout" not in self.rr["PantheonSouls.dat64"].index:
+            self.rr["PantheonSouls.dat64"].build_index("PanelLayout")
         for row in self.rr["PantheonPanelLayout.dat64"]:
             if row["IsDisabled"]:
                 continue
-
-            self._copy_from_keys(row, self._COPY_KEYS_PANTHEON, pantheon)
+            self._apply_column_map(row, self._PANTHEON_COLUMN_MAP, data["pantheon"])
             for i in range(1, 5):
-                values = row["Effect%s_Values" % i]
-                if not values:
+                stats = [v["Id"] for v in row["Effect%s_StatsKeys" % i]]
+                if not stats:
                     continue
-                stats = [s["Id"] for s in row["Effect%s_StatsKeys" % i]]
-                tr = self.tc["stat_descriptions.txt"].get_translation(
-                    tags=stats, values=values, lang=self.lang, full_result=True
-                )
-
-                od = OrderedDict()
-                od["id"] = row["Id"]
-                od["ordinal"] = i
-                od["name"] = row["GodName%s" % i]
-                od["stat_text"] = self._format_tr(tr)
-
+                values = row["Effect%s_Values" % i]
+                row_data = {}
                 # The first entry is the god itself
                 if i > 1:
-                    souls = self.rr["PantheonSouls.dat64"].index["PantheonPanelLayoutKey"][row][
-                        i - 2
-                    ]
-                    od.update(self._copy_from_keys(souls, self._COPY_KEYS_PANTHEON_SOULS, rtr=True))
-                pantheon_souls.append(od)
+                    souls = self.rr["PantheonSouls.dat64"].index["PanelLayout"][row][i - 2]
+                    row_data = self._apply_column_map(souls, self._PANTHEON_SOULS_COLUMN_MAP)
+                row_data["id"] = row["Id"]
+                row_data["ordinal"] = i
+                row_data["name"] = row["GodName%s" % i]
+                row_data["stat_text"] = self._format_tr(
+                    self.tc["stat_descriptions.txt"].get_translation(
+                        stats, [int(v) for v in values], full_result=True
+                    )
+                )
+                data["pantheon_souls"].append(row_data)
 
                 for j, (stat, value) in enumerate(zip(stats, values), start=1):
-                    pantheon_stats.append(
-                        OrderedDict(
-                            (
-                                ("pantheon_id", row["Id"]),
-                                (
-                                    "pantheon_ordinal",
-                                    i,
-                                ),
-                                ("ordinal", j),
-                                ("stat", stat),
-                                ("value", value),
-                            )
-                        )
-                    )
+                    stat_data = {
+                        "pantheon_id": row["Id"],
+                        "pantheon_ordinal": i,
+                        "ordinal": j,
+                        "stat": stat,
+                        "value": value,
+                    }
+                    data["pantheon_stats"].append(stat_data)
 
         r = ExporterResult()
-        for k in ("", "_souls", "_stats"):
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(locals()["pantheon" + k]),
-                out_file="pantheon%s.lua" % k,
+                text=LuaFormatter.format_module(data),
+                out_file="%s.lua" % key,
                 wiki_page=[
                     {
-                        "page": "Module:Pantheon/pantheon%s" % k,
+                        "page": "Module:Pantheon/%s" % key,
                         "condition": None,
                     }
                 ],
+                wiki_message="Pantheon data exporter",
             )
 
         return r
 
 
 class SynthesisParser(GenericLuaParser):
-    _DATA = (
-        {
-            "file": "SynthesisAreas.dat64",
-            "key": "synthesis_areas",
-            "data": (
-                (
-                    "Id",
-                    {
-                        "key": "id",
-                    },
-                ),
-                (
-                    "MinLevel",
-                    {
-                        "key": "min_level",
-                    },
-                ),
-                (
-                    "MaxLevel",
-                    {
-                        "key": "max_level",
-                    },
-                ),
-                (
-                    "Weight",
-                    {
-                        "key": "weight",
-                    },
-                ),
-                (
-                    "Name",
-                    {
-                        "key": "name",
-                    },
-                ),
-                (
-                    "SynthesisAreaSizeKey",
-                    {
-                        "key": "size",
-                        "value": lambda v: v.rowid,
-                    },
-                ),
-            ),
-        },
-        {
-            "file": "SynthesisGlobalMods.dat64",
-            "key": "synthesis_global_mods",
-            "data": (
-                (
-                    "ModsKey",
-                    {
-                        "key": "mod_id",
-                        "value": lambda v: v["Id"],
-                    },
-                ),
-                (
-                    "MinLevel",
-                    {
-                        "key": "min_level",
-                    },
-                ),
-                (
-                    "MaxLevel",
-                    {
-                        "key": "max_level",
-                    },
-                ),
-                (
-                    "Weight",
-                    {
-                        "key": "weight",
-                    },
-                ),
-            ),
-        },
+    _files = [
+        "SynthesisAreas.datc64",
+        "SynthesisGlobalMods.datc64",
+    ]
+
+    _SYNTHESIS_AREAS_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "MinLevel",
+            {
+                "template": "min_level",
+            },
+        ),
+        (
+            "MaxLevel",
+            {
+                "template": "max_level",
+            },
+        ),
+        (
+            "Weight",
+            {
+                "template": "weight",
+            },
+        ),
+        (
+            "Name",
+            {
+                "template": "name",
+            },
+        ),
+        (
+            "SynthesisAreaSizeKey",
+            {
+                "template": "size",
+                "format": lambda v: v.rowid,
+            },
+        ),
     )
 
-    _files = [row["file"].replace(".dat64", ".datc64") for row in _DATA]
+    _SYNTHESIS_GLOBAL_MODS_COLUMN_MAP = (
+        (
+            "ModsKey",
+            {
+                "template": "mod_id",
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "MinLevel",
+            {
+                "template": "min_level",
+            },
+        ),
+        (
+            "MaxLevel",
+            {
+                "template": "max_level",
+            },
+        ),
+        (
+            "Weight",
+            {
+                "template": "weight",
+            },
+        ),
+    )
 
     def main(self, parsed_args):
-        data = {}
-        for definition in self._DATA:
-            data[definition["key"]] = []
-            for row in self.rr[definition["file"]]:
-                self._copy_from_keys(row, definition["data"], data[definition["key"]])
+        data = {
+            "synthesis_areas": [],
+            "synthesis_global_mods": [],
+        }
+
+        for row in self.rr["SynthesisAreas.dat64"]:
+            self._apply_column_map(row, self._SYNTHESIS_AREAS_COLUMN_MAP, data["synthesis_areas"])
+
+        for row in self.rr["SynthesisGlobalMods.dat64"]:
+            self._apply_column_map(
+                row, self._SYNTHESIS_GLOBAL_MODS_COLUMN_MAP, data["synthesis_global_mods"]
+            )
 
         r = ExporterResult()
-        for definition in self._DATA:
-            key = definition["key"]
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(data[key]),
+                text=LuaFormatter.format_module(data),
                 out_file="%s.lua" % key,
                 wiki_page=[
                     {
@@ -1358,197 +1425,192 @@ class SynthesisParser(GenericLuaParser):
                         "condition": None,
                     }
                 ],
+                wiki_message="Synthesis data exporter",
             )
 
         return r
 
 
 class MonsterParser(GenericLuaParser):
-    _DATA = (
-        {
-            "key": "monster_types",
-            "file": "MonsterTypes.dat64",
-            "data": (
-                (
-                    "Id",
-                    {
-                        "key": "id",
-                    },
-                ),
-                # Deprecated in 3.19
-                # ('TagsKeys', {
-                #     'key': 'tags',
-                #     'value': lambda v: ', '.join([r['Id'] for r in v]),
-                # }),
-                (
-                    "MonsterResistancesKey",
-                    {
-                        "key": "monster_resistance_id",
-                        "value": lambda v: v["Id"],
-                    },
-                ),
-                (
-                    "Armour",
-                    {
-                        "key": "armour_multiplier",
-                        "value": lambda v: v / 100,
-                    },
-                ),
-                (
-                    "Evasion",
-                    {
-                        "key": "evasion_multiplier",
-                        "value": lambda v: v / 100,
-                    },
-                ),
-                (
-                    "DamageSpread",
-                    {
-                        "key": "damage_spread",
-                        "value": lambda v: v / 100,
-                    },
-                ),
-            ),
-        },
-        {
-            "key": "monster_resistances",
-            "file": "MonsterResistances.dat64",
-            "data": (
-                (
-                    "Id",
-                    {
-                        "key": "id",
-                    },
-                ),
-                (
-                    "FireNormal",
-                    {
-                        "key": "part1_fire",
-                    },
-                ),
-                (
-                    "ColdNormal",
-                    {
-                        "key": "part1_cold",
-                    },
-                ),
-                (
-                    "LightningNormal",
-                    {
-                        "key": "part1_lightning",
-                    },
-                ),
-                (
-                    "ChaosNormal",
-                    {
-                        "key": "part1_chaos",
-                    },
-                ),
-                (
-                    "FireCruel",
-                    {
-                        "key": "part2_fire",
-                    },
-                ),
-                (
-                    "ColdCruel",
-                    {
-                        "key": "part2_cold",
-                    },
-                ),
-                (
-                    "LightningCruel",
-                    {
-                        "key": "part2_lightning",
-                    },
-                ),
-                (
-                    "ChaosCruel",
-                    {
-                        "key": "part2_chaos",
-                    },
-                ),
-                (
-                    "FireMerciless",
-                    {
-                        "key": "maps_fire",
-                    },
-                ),
-                (
-                    "ColdMerciless",
-                    {
-                        "key": "maps_cold",
-                    },
-                ),
-                (
-                    "LightningMerciless",
-                    {
-                        "key": "maps_lightning",
-                    },
-                ),
-                (
-                    "ChaosMerciless",
-                    {
-                        "key": "maps_chaos",
-                    },
-                ),
-            ),
-        },
-        {
-            "key": "monster_base_stats",
-            "file": "DefaultMonsterStats.dat64",
-            "data": (
-                (
-                    "DisplayLevel",
-                    {
-                        "key": "level",
-                        "value": lambda v: int(v),
-                    },
-                ),
-                (
-                    "Damage",
-                    {
-                        "key": "damage",
-                    },
-                ),
-                (
-                    "Evasion",
-                    {
-                        "key": "evasion",
-                    },
-                ),
-                (
-                    "Armour",
-                    {
-                        "key": "armour",
-                    },
-                ),
-                (
-                    "Accuracy",
-                    {
-                        "key": "accuracy",
-                    },
-                ),
-                (
-                    "Life",
-                    {
-                        "key": "life",
-                    },
-                ),
-                (
-                    "Experience",
-                    {
-                        "key": "experience",
-                    },
-                ),
-                (
-                    "AllyLife",
-                    {
-                        "key": "summon_life",
-                    },
-                ),
-            ),
-        },
+    _files = [
+        "MonsterTypes.datc64",
+        "MonsterResistances.datc64",
+        "DefaultMonsterStats.datc64",
+        "MonsterMapDifficulty.datc64",
+        "MonsterMapBossDifficulty.datc64",
+        "MagicMonsterLifeScalingPerLevel.datc64",
+        "RareMonsterLifeScalingPerLevel.datc64",
+    ]
+
+    _MONSTER_TYPES_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "MonsterResistancesKey",
+            {
+                "template": "monster_resistance_id",
+                "condition": lambda v: v,
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "Armour",
+            {
+                "template": "armour_multiplier",
+                "format": lambda v: v / 100,
+            },
+        ),
+        (
+            "Evasion",
+            {
+                "template": "evasion_multiplier",
+                "format": lambda v: v / 100,
+            },
+        ),
+        (
+            "DamageSpread",
+            {
+                "template": "damage_spread",
+                "format": lambda v: v / 100,
+            },
+        ),
+    )
+
+    _MONSTER_RESISTANCES_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "FireNormal",
+            {
+                "template": "part1_fire",
+            },
+        ),
+        (
+            "ColdNormal",
+            {
+                "template": "part1_cold",
+            },
+        ),
+        (
+            "LightningNormal",
+            {
+                "template": "part1_lightning",
+            },
+        ),
+        (
+            "ChaosNormal",
+            {
+                "template": "part1_chaos",
+            },
+        ),
+        (
+            "FireCruel",
+            {
+                "template": "part2_fire",
+            },
+        ),
+        (
+            "ColdCruel",
+            {
+                "template": "part2_cold",
+            },
+        ),
+        (
+            "LightningCruel",
+            {
+                "template": "part2_lightning",
+            },
+        ),
+        (
+            "ChaosCruel",
+            {
+                "template": "part2_chaos",
+            },
+        ),
+        (
+            "FireMerciless",
+            {
+                "template": "maps_fire",
+            },
+        ),
+        (
+            "ColdMerciless",
+            {
+                "template": "maps_cold",
+            },
+        ),
+        (
+            "LightningMerciless",
+            {
+                "template": "maps_lightning",
+            },
+        ),
+        (
+            "ChaosMerciless",
+            {
+                "template": "maps_chaos",
+            },
+        ),
+    )
+
+    _MONSTER_BASE_STATS_COLUMN_MAP = (
+        (
+            "DisplayLevel",
+            {
+                "template": "level",
+                "format": lambda v: int(v),
+            },
+        ),
+        (
+            "Damage",
+            {
+                "template": "damage",
+            },
+        ),
+        (
+            "Evasion",
+            {
+                "template": "evasion",
+            },
+        ),
+        (
+            "Armour",
+            {
+                "template": "armour",
+            },
+        ),
+        (
+            "Accuracy",
+            {
+                "template": "accuracy",
+            },
+        ),
+        (
+            "Life",
+            {
+                "template": "life",
+            },
+        ),
+        (
+            "Experience",
+            {
+                "template": "experience",
+            },
+        ),
+        (
+            "AllyLife",
+            {
+                "template": "summon_life",
+            },
+        ),
     )
 
     _ENUM_DATA = {
@@ -1633,11 +1695,26 @@ class MonsterParser(GenericLuaParser):
     }
 
     def main(self, parsed_args):
-        data = {}
-        for definition in self._DATA:
-            data[definition["key"]] = []
-            for row in self.rr[definition["file"]]:
-                self._copy_from_keys(row, definition["data"], data[definition["key"]])
+        data = {
+            "monster_types": [],
+            "monster_resistances": [],
+            "monster_base_stats": [],
+            "monster_map_multipliers": [],
+            "monster_life_scaling": [],
+        }
+
+        for row in self.rr["MonsterTypes.dat64"]:
+            self._apply_column_map(row, self._MONSTER_TYPES_COLUMN_MAP, data["monster_types"])
+
+        for row in self.rr["MonsterResistances.dat64"]:
+            self._apply_column_map(
+                row, self._MONSTER_RESISTANCES_COLUMN_MAP, data["monster_resistances"]
+            )
+
+        for row in self.rr["DefaultMonsterStats.dat64"]:
+            self._apply_column_map(
+                row, self._MONSTER_BASE_STATS_COLUMN_MAP, data["monster_base_stats"]
+            )
 
         for key, data_map in self._ENUM_DATA.items():
             map_multi = []
@@ -1648,9 +1725,9 @@ class MonsterParser(GenericLuaParser):
             data[key] = map_multi
 
         r = ExporterResult()
-        for key, v in data.items():
+        for key, data in data.items():
             r.add_result(
-                text=LuaFormatter.format_module(v),
+                text=LuaFormatter.format_module(data),
                 out_file="%s.lua" % key,
                 wiki_page=[
                     {
@@ -1658,44 +1735,26 @@ class MonsterParser(GenericLuaParser):
                         "condition": None,
                     }
                 ],
+                wiki_message="Monster data exporter",
             )
 
         return r
 
 
 class CraftingBenchParser(GenericLuaParser):
-    def RecipeLocationGenerator(val):
-        text_descriptions = []
-        areas = []
-        for key in val:
-            if not key:
-                continue
-            if len(key["UnlockDescription"]) > 0:
-                text_descriptions.append(key["UnlockDescription"])
-            # Default to the text description instead of the more ambiguous zone name.
-            # This defaulting is useful for disambiguating the different Aspirant's Trial zones
-            if len(key["UnlockArea"]["Name"]) > 0 and len(text_descriptions) == 0:
-                areas.append(key["UnlockArea"]["Name"])
-        return " • ".join(text_descriptions + areas)
+    _files = [
+        "CraftingBenchOptions.datc64",
+    ]
 
-    def DetermineModifier(val):
-        # AddMod value
-        if not val[0] is None and len(val[0]) > 0:
-            return val[0]["Id"]
-        # AddEnchantment value
-        elif not val[1] is None and len(val[1]) > 0:
-            return val[1]["Id"]
-        return None
-
-    _DATA = (
+    _CRAFTING_BENCH_OPTIONS_COLUMN_MAP = (
         (
             "HideoutNPCsKey",
             {
-                "key": "npc",
+                "template": "npc",
                 # 3.15
                 # This should be accessed by keys not values
                 # TODO: fix this.
-                "value": lambda v: (
+                "format": lambda v: (
                     v["Hideout_NPCsKey"]["NPCMasterKey"]["Id"]
                     if v["Hideout_NPCsKey"]["NPCMasterKey"]
                     else None
@@ -1705,141 +1764,132 @@ class CraftingBenchParser(GenericLuaParser):
         (
             "Order",
             {
-                "key": "ordinal",
+                "template": "ordinal",
             },
         ),
         (
+            # This is a virtual field combining AddMod and AddEnchantment.
+            # It always returns a list of length 2, so we need to check for
+            # values that are not None.
             "AddModOrEnchantment",
             {
-                "key": "mod_id",
-                "value": DetermineModifier,
+                "template": "mod_id",
+                "condition": lambda v: any(v),
+                "format": lambda v: [r["Id"] for r in v if r is not None][0],
             },
         ),
         (
             "RequiredLevel",
             {
-                "key": "required_level",
-                "default": 0,
+                "template": "required_level",
+                "condition": lambda v: v > 0,
             },
         ),
         (
             "Name",
             {
-                "key": "name",
+                "template": "name",
+                "condition": lambda v: v,
             },
         ),
         (
             "ItemClasses",
             {
-                "key": "item_classes",
-                "value": lambda v: [k["Name"] for k in v],
-                "default": [],
+                "template": "item_classes",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Name"] for r in v],
             },
         ),
         (
             "ItemClasses",
             {
-                "key": "item_classes_ids",
-                "value": lambda v: [k["Id"] for k in v],
-                "default": [],
+                "template": "item_classes_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
             },
         ),
         (
             "Links",
             {
-                "key": "links",
-                "default": 0,
+                "template": "links",
+                "condition": lambda v: v > 0,
             },
         ),
         (
             "SocketColours",
             {
-                "key": "socket_colours",
+                "template": "socket_colours",
+                "condition": lambda v: v,
             },
         ),
         (
             "Sockets",
             {
-                "key": "sockets",
-                "default": 0,
+                "template": "sockets",
+                "condition": lambda v: v > 0,
             },
         ),
         (
             "Description",
             {
-                "key": "description",
+                "template": "description",
+                "condition": lambda v: v,
             },
         ),
         (
             "RecipeIds",
             {
-                "key": "recipe_unlock_location",
-                "value": RecipeLocationGenerator,
-                "default": "",
+                "template": "recipe_unlock_location",
+                "condition": lambda v: v,
+                # Use the given unlock description or the name of the area.
+                # Recipes should all have a single unlock location, but the data
+                # is formatted as an array, so output a comma-separated string.
+                "format": lambda v: ", ".join(
+                    [r["UnlockDescription"] or r["UnlockArea"]["Name"] for r in v]
+                ),
             },
         ),
         (
             "Tier",
             {
-                "key": "rank",
+                "template": "rank",
             },
         ),
-        # ('ModFamily', {
-        #     'key': 'mod_group',
-        #     'default': '',
-        # }),
         (
             "CraftingItemClassCategories",
             {
-                "key": "item_class_categories",
-                "value": lambda v: [k["Text"] for k in v],
+                "template": "item_class_categories",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Text"] for r in v],
             },
         ),
-        # ('CraftingBenchUnlockCategoriesKeys', {
-        #     'key': 'crafting_bench_unlock_category',
-        #     'value': lambda v: v['UnlockType'],
-        # }),
-        # ('CraftingBenchUnlockCategoriesKeys', {
-        #     'key': 'crafting_bench_unlock_category_description',
-        #     'value': lambda v: v['ObtainingDescription'],
-        # }),
-        # (
-        #     "UnveilsRequired",
-        #     {
-        #         "key": "unveils_required",
-        #         "default": 0,
-        #     },
-        # ),
         (
             "SortCategory",
             {
-                "key": "affix_type",
-                "value": lambda v: v["Id"],
+                "template": "affix_type",
+                "format": lambda v: v["Id"],
             },
         ),
     )
-
-    _files = ["CraftingBenchOptions.datc64"]
 
     def main(self, parsed_args):
         data = {
             "crafting_bench_options": [],
             "crafting_bench_options_costs": [],
         }
-        for row in self.rr["CraftingBenchOptions.dat64"]:
-            self._copy_from_keys(row, self._DATA, data["crafting_bench_options"])
-            data["crafting_bench_options"][-1]["id"] = row.rowid
 
+        for row in self.rr["CraftingBenchOptions.dat64"]:
+            row_data = self._apply_column_map(
+                row, self._CRAFTING_BENCH_OPTIONS_COLUMN_MAP, data["crafting_bench_options"]
+            )
+            row_data["id"] = row.rowid
             for i, base_item in enumerate(row["Cost_BaseItemTypes"]):
-                data["crafting_bench_options_costs"].append(
-                    OrderedDict(
-                        (
-                            ("option_id", row.rowid),
-                            ("name", base_item["Name"]),
-                            ("amount", row["Cost_Values"][i]),
-                        )
-                    )
-                )
+                costs_data = {
+                    "option_id": row.rowid,
+                    "name": base_item["Name"],
+                    "amount": row["Cost_Values"][i],
+                }
+                data["crafting_bench_options_costs"].append(costs_data)
 
         r = ExporterResult()
         for key, data in data.items():
@@ -1852,6 +1902,7 @@ class CraftingBenchParser(GenericLuaParser):
                         "condition": None,
                     }
                 ],
+                wiki_message="Crafting bench data exporter",
             )
 
         return r
@@ -1959,6 +2010,350 @@ class MonsterPackParser(GenericLuaParser):
                         "condition": None,
                     }
                 ],
+                wiki_message="Monster pack data exporter",
+            )
+
+        return r
+
+
+class MercenariesParser(GenericLuaParser):
+    _files = [
+        "MercenaryClasses.datc64",
+        "MercenaryBuilds.datc64",
+        "MercenaryBuildExtraStats.datc64",
+        "MercenarySkills.datc64",
+        "MercenarySupports.datc64",
+    ]
+
+    _MERCENARY_CLASSES_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "HouseName",
+            {
+                "template": "house",
+            },
+        ),
+        (
+            "Attribute",
+            {
+                "template": "attribute",
+                "format": lambda v: v["Id"],
+            },
+        ),
+    )
+
+    _MERCENARY_BUILDS_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "Class",
+            {
+                "template": "class_id",
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "Skills1",
+            {
+                "template": "primary_skill_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r.rowid for r in v],
+            },
+        ),
+        (
+            "Skills2Count",
+            {
+                "template": "secondary_skill_count",
+                "condition": lambda v: v > 0,
+            },
+        ),
+        (
+            "Skills2",
+            {
+                "template": "secondary_skill_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r.rowid for r in v],
+            },
+        ),
+        (
+            "Skills3Count",
+            {
+                "template": "tertiary_skill_count",
+                "condition": lambda v: v > 0,
+            },
+        ),
+        (
+            "Skills3",
+            {
+                "template": "tertiary_skill_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r.rowid for r in v],
+            },
+        ),
+        (
+            "Tags",
+            {
+                "template": "tags",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
+            },
+        ),
+        (
+            "Name",
+            {
+                "template": "name",
+            },
+        ),
+        (
+            "IsInfamous",
+            {
+                "template": "is_infamous",
+                "condition": lambda v: v,
+                "format": lambda v: v,
+            },
+        ),
+        (
+            "WieldableTypes",
+            {
+                "template": "weapon_class_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["ItemClass"]["Id"] for r in v],
+            },
+        ),
+        (
+            "ExtraStats",
+            {
+                "template": "build_stat_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
+            },
+        ),
+    )
+
+    _MERCENARY_BUILD_EXTRA_STATS_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "Stat",
+            {
+                "template": "stat_id",
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "Value1",
+            {
+                "template": "value1",
+            },
+        ),
+        (
+            "Value2",
+            {
+                "template": "value2",
+            },
+        ),
+        (
+            "Value3",
+            {
+                "template": "value3",
+            },
+        ),
+        (
+            "Category",
+            {
+                "template": "category",
+                "format": lambda v: v["Id"],
+            },
+        ),
+    )
+
+    _MERCENARY_SKILLS_COLUMN_MAP = (
+        (
+            "GrantedEffect",
+            {
+                "template": "skill_id",
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "SupportCount",
+            {
+                "template": "support_count",
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "PossibleSupports",
+            {
+                "template": "support_ids",
+                "condition": lambda v: v,
+                "format": lambda v: [r["Id"] for r in v],
+            },
+        ),
+        (
+            "Name",
+            {
+                "template": "name",
+            },
+        ),
+        (
+            "Description",
+            {
+                "template": "description",
+            },
+        ),
+        (
+            "SkillFamily",
+            {
+                "template": "family",
+                "condition": lambda v: v,
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "HouseIcon",
+            {
+                "template": "icon",
+                "condition": lambda v: v,
+                "format": lambda v: posixpath.basename(v.replace(".dds", "")),
+            },
+        ),
+    )
+
+    _MERCENARY_SUPPORTS_COLUMN_MAP = (
+        (
+            "Id",
+            {
+                "template": "id",
+            },
+        ),
+        (
+            "Name",
+            {
+                "template": "name",
+            },
+        ),
+        (
+            "SupportFamily",
+            {
+                "template": "family",
+                "condition": lambda v: v,
+                "format": lambda v: v["Id"],
+            },
+        ),
+        (
+            "GemIcon",
+            {
+                "template": "icon",
+                "condition": lambda v: v,
+                "format": lambda v: posixpath.basename(v.replace(".dds", "")),
+            },
+        ),
+        (
+            "Tier",
+            {
+                "template": "tier",
+            },
+        ),
+    )
+
+    def main(self, parsed_args):
+        self._image_init(parsed_args)
+
+        data = {
+            "classes": [],
+            "builds": [],
+            "build_stats": [],
+            "skills": [],
+            "supports": [],
+            "support_stats": [],
+        }
+
+        for row in self.rr["MercenaryClasses.dat64"]:
+            self._apply_column_map(row, self._MERCENARY_CLASSES_COLUMN_MAP, data["classes"])
+
+        for row in self.rr["MercenaryBuilds.dat64"]:
+            self._apply_column_map(row, self._MERCENARY_BUILDS_COLUMN_MAP, data["builds"])
+
+        for row in self.rr["MercenaryBuildExtraStats.dat64"]:
+            self._apply_column_map(
+                row, self._MERCENARY_BUILD_EXTRA_STATS_COLUMN_MAP, data["build_stats"]
+            )
+
+        for row in self.rr["MercenarySkills.dat64"]:
+            row_data = self._apply_column_map(
+                row, self._MERCENARY_SKILLS_COLUMN_MAP, data["skills"]
+            )
+            row_data["id"] = row.rowid
+
+            if parsed_args.store_images:
+                if row["HouseIcon"]:
+                    self._write_dds(
+                        data=self.file_system.get_file(row["HouseIcon"]),
+                        out_path=os.path.join(
+                            self._img_path,
+                            "%s mercenary skill icon.dds" % (row_data["icon"]),
+                        ),
+                        parsed_args=parsed_args,
+                    )
+
+        for row in self.rr["MercenarySupports.dat64"]:
+            row_data = self._apply_column_map(
+                row, self._MERCENARY_SUPPORTS_COLUMN_MAP, data["supports"]
+            )
+
+            stats = [r["Id"] for r in row["Stats"]]
+            for i, stat_id in enumerate(stats):
+                stat_data = {
+                    "support_id": row["Id"],
+                    "stat_id": stat_id,
+                    "value": row["StatValues"][i],
+                }
+                data["support_stats"].append(stat_data)
+
+            if stats:
+                row_data["stat_text"] = self._format_tr(
+                    self.tc["mercenary_support_stat_descriptions.txt"].get_translation(
+                        stats, [int(v) for v in row["StatValues"]], full_result=True
+                    )
+                )
+
+            if parsed_args.store_images:
+                if row["GemIcon"]:
+                    self._write_dds(
+                        data=self.file_system.get_file(row["GemIcon"]),
+                        out_path=os.path.join(
+                            self._img_path,
+                            "%s mercenary support icon.dds" % (row_data["icon"]),
+                        ),
+                        parsed_args=parsed_args,
+                    )
+
+        r = ExporterResult()
+        for key, data in data.items():
+            r.add_result(
+                text=LuaFormatter.format_module(data),
+                out_file="mercenaries_%s.lua" % key,
+                wiki_page=[
+                    {
+                        "page": "Module:Mercenaries/%s" % key,
+                        "condition": None,
+                    }
+                ],
+                wiki_message="Mercenaries data exporter",
             )
 
         return r

@@ -166,18 +166,6 @@ class MapsParser(ItemsParser):
             "High": "High Tier",
             "Uber": "Max Tier",
         },
-        "German": {
-            "Low": "Niedrige Stufe",
-            "Mid": "Mittlere Stufe",
-            "High": "Hohe Stufe",
-            "Uber": "Maximale Stufe",
-        },
-        "Russian": {
-            "Low": "низкий уровень",
-            "Mid": "средний уровень",
-            "High": "высокий уровень",
-            "Uber": "максимальный уровень",
-        },
     }
 
     _SKIP_ITEMS_BY_ID = {
@@ -342,7 +330,6 @@ class MapsParser(ItemsParser):
                 },
             ),
         ),
-        row_index=True,
         function=_maps_extra,
     )
 
@@ -368,6 +355,7 @@ class MapsParser(ItemsParser):
 
     _type_map_key = _type_factory(
         data_file="MapKeys.dat64",
+        index_column="BaseItemType",
         data_mapping=(
             (
                 "MapTier",
@@ -376,8 +364,6 @@ class MapsParser(ItemsParser):
                 },
             ),
         ),
-        row_index=True,
-        index_column="BaseItemType",
         function=_map_key_extra,
     )
 
@@ -733,8 +719,12 @@ class MapsParser(ItemsParser):
             self._type_map_key(infobox, base_item_type)
 
             infobox["map_series"] = map_series["Name"]
-            infobox["map_series_icon"] = name_series
-            icon_name = name_series
+            if base_item_type["Id"] in self._MAPS_TO_SKIP_COMPOSITING:
+                infobox["inventory_icon"] = name
+                icon_name = name
+            else:
+                infobox["map_series_icon"] = name_series
+                icon_name = name_series
 
             if self._language != "English" and parsed_args.english_file_link:
                 infobox["map_series_icon"] = self._format_map_name(

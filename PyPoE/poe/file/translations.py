@@ -1532,7 +1532,9 @@ class TranslationFile(AbstractFileReadOnly):
         # noqa
     }
 
+    # Some stat IDs need to be manually mapped to IDs in ClientStrings.dat
     _CLIENT_STRINGS_LOOKUP = {
+        # PoE 1
         "map_is_uber_map": "ItemPopupUnmodifiableExceptChaosOrbs",
         "local_influence_mod_requires_celestial_boss_presence": "InfluenceStatConditionPresenceCelestialBoss",
         "local_influence_mod_requires_unique_monster_presence": "InfluenceStatConditionPresenceUniqueMonster",
@@ -2430,6 +2432,7 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
             placeholder="&lt;random Support Gem&gt;",
         )
 
+    if relational_reader.specification.sequel == 1:
         TQRelationalData(
             id="display_indexable_non_active_support",
             relational_reader=relational_reader,
@@ -2461,15 +2464,6 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
             index_column="Index",
             placeholder="&lt;random Skill&gt;",
         )
-
-    # if relational_reader.specification.sequel == 1:
-    #     TQRelationalData(
-    #         id="display_indexable_non_active_support",
-    #         relational_reader=relational_reader,
-    #         table="IndexableSupportGems.dat64",
-    #         index_column="Index",
-    #         placeholder="&lt;random Support Gem&gt;",
-    #     )
 
     if relational_reader.specification.sequel == 2:
         TQRelationalData(

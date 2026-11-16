@@ -34,6 +34,11 @@ custom_attributes = {
             enum="DELVE_UPGRADE_TYPE",
         ),
     },
+    "DivinationCardArt.dat": {
+        "Effects": CustomizedField(
+            enum="CARD_ANIMATED_EFFECTS",
+        ),
+    },
     "GemEffects.dat": {
         "ItemColor": CustomizedField(
             enum="GEM_STYLES",
@@ -42,6 +47,14 @@ custom_attributes = {
     "GrantedEffects.dat": {
         "Attribute": CustomizedField(
             enum="ATTRIBUTES",
+        ),
+    },
+    "HarvestCraftOptions.dat": {
+        "LifeforceType": CustomizedField(
+            enum="LIFEFORCE_TYPES",
+        ),
+        "GameMode": CustomizedField(
+            enum="GAME_MODES",
         ),
     },
     "ItemVisualIdentity.dat": {

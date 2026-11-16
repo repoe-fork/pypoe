@@ -679,8 +679,8 @@ class SkillParserShared(parser.BaseParser):
         # From ActiveSkills.dat64
         if act_skill:
             if act_skill["Description"]:
-                infobox["gem_description"] = (
-                    act_skill["Description"].replace("\n", "<br>").replace("\r", "")
+                infobox["gem_description"] = parser.process_keywords(
+                    "<br>".join(act_skill["Description"].splitlines())
                 )
             if act_skill["DisplayedName"]:
                 infobox["active_skill_name"] = act_skill["DisplayedName"]
@@ -762,7 +762,7 @@ class SkillParserShared(parser.BaseParser):
                     )[0].split("\n")
                 )
 
-            infobox[prefix + "stat_text"] = "<br>".join(lines)
+            infobox[prefix + "stat_text"] = parser.process_keywords(self._format_lines(lines))
             if breakpoints:
                 infobox[prefix + "breakpoints"] = ",".join(breakpoints)
 
@@ -897,7 +897,7 @@ class SkillParserShared(parser.BaseParser):
             if added:
                 lines = added + lines
 
-        infobox["stat_text"] = self._format_lines(lines)
+        infobox["stat_text"] = parser.process_keywords(self._format_lines(lines))
 
         #
         # Output handling for progression
@@ -950,7 +950,7 @@ class SkillParserShared(parser.BaseParser):
                 stats.extend(stat_dict["stats"])
                 values.extend(stat_dict["values"])
             if lines:
-                infobox[prefix + "stat_text"] = self._format_lines(lines)
+                infobox[prefix + "stat_text"] = parser.strip_keywords(self._format_lines(lines))
             self._write_stats(
                 infobox,
                 [(s, v) for s, v in zip(stats, values) if s not in static["stat_keys"]],
@@ -1074,8 +1074,8 @@ class SkillParser(SkillParserShared):
                 else None
             )
             if gem_effect and gem_effect["SupportText"]:
-                data["gem_description"] = (
-                    gem_effect["SupportText"].replace("\n", "<br>").replace("\r", "")
+                data["gem_description"] = parser.process_keywords(
+                    "<br>".join(gem_effect["SupportText"].splitlines())
                 )
             if skill_gem:
                 levels = self.rr["ItemExperiencePerLevel.dat64"].index["ItemExperienceType"][

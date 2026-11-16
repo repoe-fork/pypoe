@@ -80,9 +80,11 @@ __all__ = [
     "GAME_MODES",
     "ITEM_VISUAL_COMPOSITIONS",
     "GEM_STYLES",
+    "CARD_ANIMATED_EFFECTS",
+    "LIFEFORCE_TYPES",
 ]
 
-MOD_MAX_STATS = 6
+MOD_MAX_STATS = 8
 MOD_STATS_RANGE = range(1, MOD_MAX_STATS + 1)
 
 # Apparently GGG doesnt want us to know this, so they removed it in 3.5.0
@@ -598,12 +600,11 @@ class MOD_DOMAIN(IntEnumOverride):
     MONSTER = 3
     CHEST = 4
     AREA = 5
-    UNKNOWN1 = 6
+    # 6 is unused
     TEMPLAR_RELIC = 7
-    UNKNOWN3 = 8
+    # 8 is unused
     CRAFTED = 9
-    # Corruptions, item limits, jewel mods, other stuff?
-    MISC = 10
+    JEWEL = 10
     ATLAS = 11
     LEAGUESTONE = 12
     ABYSS_JEWEL = 13
@@ -642,7 +643,7 @@ class MOD_DOMAIN(IntEnumOverride):
 
     # legacy names
     MASTER = CRAFTED
-    JEWEL = MISC
+    MISC = JEWEL
 
 
 MOD_TRANSLATION_MAP = {
@@ -727,6 +728,7 @@ class MOD_GENERATION_TYPE(IntEnumOverride):
     TALISMAN = 9
     ENCHANTMENT = 10
     ESSENCE = 11
+    # 12 is unused
     BESTIARY = 13
     DELVE_AREA = 14
     SYNTHESIS_A = 15
@@ -746,12 +748,70 @@ class MOD_GENERATION_TYPE(IntEnumOverride):
     EATER_OF_WORLDS_IMPLICIT = 29
     # 30 is unused.
     CRUCIBLE_TREE = 31
-    CRUCIBLE_UNIQUE_TREE = 32
+    CRUCIBLE_TREE_MUTATION = 32
     AZMERI_EMPOWERED_MONSTER = 33
     NECROPOLIS_MONSTER = 34
     NECROPOLIS_DEVOTED_MONSTER = 35
     MEMORY_ALTAR = 36
-    DEEPWATER_CHART = 37
+    DEEPWATER_VOYAGE_PLANNER = 37
+
+
+# This maps mod domains to translation files. For each domain, we can specify
+# translation files for specific generation types, or a default translation file.
+MOD_TRANSLATION_MAP = {
+    MOD_DOMAIN.MONSTER: {
+        "default": "monster_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.CHEST: {
+        "default": "chest_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.AREA: {
+        "default": "map_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.ATLAS: {
+        "default": "atlas_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.LEAGUESTONE: {
+        "default": "leaguestone_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.DELVE_AREA: {
+        "default": "map_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.MAP_DEVICE: {
+        "default": "map_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.CRAFTED: {
+        "default": "map_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.HEIST_NPC: {
+        "default": "heist_equipment_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.PRIMORDIAL_ALTAR: {
+        "default": "primordial_altar_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.SENTINEL: {
+        "default": "sentinel_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.TEMPLAR_RELIC: {
+        "default": "sanctum_relic_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.TINCTURE: {
+        "default": "tincture_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.MAP_RELIC: {
+        "default": "atlas_relic_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.BREQUEL_GRAFT: {
+        "default": "graft_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.DEEPWATER_CHART: {
+        MOD_GENERATION_TYPE.DEEPWATER_VOYAGE_PLANNER: "deepwater_implicit_stat_descriptions.txt",
+        "default": "map_stat_descriptions.txt",
+    },
+    MOD_DOMAIN.DEEPWATER_BORDER: {
+        "default": "deepwater_implicit_stat_descriptions.txt",
+    },
+}
 
 
 class WORDLISTS(IntEnumOverride):
@@ -826,8 +886,7 @@ class PASSIVE_SKILL_SIZES(IntEnumOverride):
     SMALL = 2
     NOTABLE = 3
     KEYSTONE = 4
-    # 3.29: AlternatePassiveSkills abyss_special_ascendancy_notable_* rows
-    ASCENDANCY_NOTABLE = 5
+    ABYSS_SPECIAL_ASCENDANCY_NOTABLE = 5
 
 
 class PASSIVE_SKILL_TYPES(IntEnumOverride):
@@ -855,6 +914,42 @@ class GEM_STYLES(IntEnumOverride):
     TRARTHAN = 3
     EXCEPTIONAL = 4
     DEFAULT = 5
+
+
+class CARD_ANIMATED_EFFECTS(Enum, metaclass=IntEnumMetaOverride):
+    id: int
+    name_lower: str
+
+    SHAPER = (0, "shaper")
+    ELDER = (1, "elder")
+    CRUSADER = (2, "crusader")
+    EYRIE = (3, "redeemer")
+    BASILISK = (4, "hunter")
+    ADJUDICATOR = (5, "warlord")
+    ZANA = (6, "zana")
+
+    def __new__(cls, id: int, lower: str):
+        obj = object.__new__(cls)
+        obj._value_ = id
+        obj.id = id
+        obj.name_lower = lower
+        return obj
+
+
+class LIFEFORCE_TYPES(Enum, metaclass=IntEnumMetaOverride):
+    id: int
+    name_lower: str
+
+    WILD = (1, "wild")
+    VIVID = (2, "vivid")
+    PRIMAL = (3, "primal")
+
+    def __new__(cls, id: int, lower: str):
+        obj = object.__new__(cls)
+        obj._value_ = id
+        obj.id = id
+        obj.name_lower = lower
+        return obj
 
 
 # =============================================================================

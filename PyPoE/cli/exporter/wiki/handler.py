@@ -65,10 +65,6 @@ __all__ = ["ExporterHandler", "ExporterResult", "WikiHandler"]
 
 WIKIS = {
     "English": "www.poewiki.net/w",
-    "Russian": "pathofexile.fandom.com/ru",
-    "German": "pathofexile.fandom.com/de",
-    "French": "pathofexile.fandom.com/fr",
-    "Spanish": "pathofexile.fandom.com/es",
 }
 
 # =============================================================================
@@ -275,7 +271,7 @@ class WikiHandler:
                         with open(out_path + ".patch", "w") as f:
                             f.write("\n".join(u_diff))
                     else:
-                        sys.stdout.write("\n".join(u_diff))
+                        sys.stdout.write("\n".join(u_diff) + "\n")
                 else:
                     console(text)
             else:
