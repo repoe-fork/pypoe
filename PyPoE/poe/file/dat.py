@@ -468,6 +468,18 @@ class DatRecord(list):
         return self.parent.table_columns.keys()
 
 
+class IndexResults(dict):
+    def __init__(self, reader, column):
+        super().__init__()
+        self.reader = reader
+        self.column = column
+
+    def __missing__(self, key):
+        val = IndexResult(self.reader, self.column, key)
+        self[key] = val
+        return val
+
+
 class IndexResult(list[DatRecord]):
     """
     Wrapper class for results of looking up values via DatReader.index
@@ -487,12 +499,13 @@ class IndexResult(list[DatRecord]):
     receive a list but instead received a single row.
     """
 
-    __slots__ = ["_reader", "_column"]
+    __slots__ = ["_reader", "_column", "_key"]
 
-    def __init__(self, reader, column):
+    def __init__(self, reader, column, key):
         super().__init__()
         self._reader = reader
         self._column = column
+        self._key = key
 
     def only(self) -> DatRecord:
         """
@@ -506,9 +519,9 @@ class IndexResult(list[DatRecord]):
         """
         if len(self) != 1:
             raise KeyError(
-                f"Code accessing `{self._reader.file_name}.index['{self._column}']` assumed unique results, "
-                f"but there were {len(self)} matches for the requested key. "
-                f"Please update calling code to handle multiple results appropriately."
+                f"Code accessing `{self._reader.file_name}.index['{self._column}']['{self._key}']` "
+                f"assumed unique results, but there were {len(self)} matches for the requested key."
+                f" Please update calling code to handle multiple results appropriately."
             )
 
         return self[0]
@@ -735,7 +748,7 @@ class DatReader(ReprMixin):
                 columns.add(aliases.get(c, c))
 
         for column in columns:
-            self.index[column] = defaultdict(lambda: IndexResult(self, column))
+            self.index[column] = IndexResults(self, column)
             for alias in inv_alias[column]:
                 self.index[alias] = self.index[column]
 
