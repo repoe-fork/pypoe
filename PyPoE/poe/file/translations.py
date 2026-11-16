@@ -1739,7 +1739,9 @@ class TranslationFile(AbstractFileReadOnly):
                     for translation_id in translation.ids:
                         # A description in this file overrides included descriptions of the same stat
                         hashed = [
-                            t for t in self.translations_hash.get(translation_id, []) if id(t) not in included
+                            t
+                            for t in self.translations_hash.get(translation_id, [])
+                            if id(t) not in included
                         ]
                         if hashed:
                             self.translations_hash[translation_id] = hashed
