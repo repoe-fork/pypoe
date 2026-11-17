@@ -2484,6 +2484,7 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
             relational_reader=relational_reader,
             table="AlternateTreeVersionKeystones.dat64",
             index_column="StatValue",
+            value_column="Conqueror",
             placeholder="&lt;random Historical Figure&gt;",
             # arg_size=3,
         )
