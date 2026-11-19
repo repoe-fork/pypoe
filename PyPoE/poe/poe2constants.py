@@ -68,8 +68,6 @@ __all__ = [
     "RARITY",
     "SOCKET_COLOUR",
     "WORDLISTS",
-    "MOD_MAX_STATS",
-    "MOD_STATS_RANGE",
     "MOD_SELL_PRICES",
     "PASSIVE_SKILL_SIZES",
     "PASSIVE_SKILL_TYPES",
@@ -77,9 +75,6 @@ __all__ = [
     "ITEM_VISUAL_COMPOSITIONS",
     "GEM_STYLES",
 ]
-
-MOD_MAX_STATS = 8
-MOD_STATS_RANGE = range(1, MOD_MAX_STATS + 1)
 
 # Apparently GGG doesnt want us to know this, so they removed it in 3.5.0
 MOD_SELL_PRICES = {

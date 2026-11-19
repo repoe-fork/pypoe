@@ -1718,21 +1718,8 @@ class BaseParser:
             if mod is None:
                 raise ValueError("Mod must be set if any of stats or values aren't set")
             else:
-                stats = []
-                values = []
-                for i in constants.MOD_STATS_RANGE:
-                    k = mod["StatsKey%s" % i]
-                    if k is None:
-                        continue
-
-                    stat = k["Id"]
-                    value = mod["Stat%sMin" % i], mod["Stat%sMax" % i]
-
-                    if value[0] == 0 and value[1] == 0:
-                        continue
-
-                    stats.append(stat)
-                    values.append(value)
+                stats = [s[0]["Id"] for s in mod["Stats"] if s[0]]
+                values = [[s[1], s[2]] for s in mod["Stats"] if s[0]]
         if mod is not None:
             values = dict(
                 (stat, self._fix_sign(value, mod["Id"], stat)) for stat, value in zip(stats, values)

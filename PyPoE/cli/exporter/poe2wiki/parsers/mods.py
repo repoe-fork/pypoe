@@ -278,22 +278,9 @@ class ModParser(parser.BaseParser):
                     [k["GrantedEffect"]["Id"] for k in mod["GrantedEffectsPerLevel"]]
                 )
 
-            stats = []
-            values = []
-            buffstats = mod["BuffTemplate"]["StatsKey"] if mod["BuffTemplate"] else []
-            for i in constants.MOD_STATS_RANGE:
-                k = mod["StatsKey%s" % i]
-                if k is None or k in buffstats:
-                    continue
-
-                stat = k["Id"]
-                value = mod["Stat%sMin" % i], mod["Stat%sMax" % i]
-
-                if value[0] == 0 and value[1] == 0:
-                    continue
-
-                stats.append(stat)
-                values.append(value)
+            buffstats = mod["BuffTemplate"]["Stats"] if mod["BuffTemplate"] else []
+            stats = [s[0]["Id"] for s in mod["Stats"] if s[0] and s[0] not in buffstats]
+            values = [[s[1], s[2]] for s in mod["Stats"] if s[0] and s[0] not in buffstats]
 
             infobox["stat_text"] = parser.process_keywords(
                 "<br>".join(self._get_stats(stats, values, mod))

@@ -268,18 +268,9 @@ def get_translation(mod, translation_cache, translation_file=None, **kwargs):
 
     """
     constants = mod.parent.constants
-    stats = []
-    for i in constants.MOD_STATS_RANGE:
-        stat = mod["StatsKey%s" % i]
-        if stat:
-            stats.append(stat)
 
-    ids = []
-    values = []
-    for i, stat in enumerate(stats):
-        j = i + 1
-        values.append([mod["Stat%sMin" % j], mod["Stat%sMax" % j]])
-        ids.append(stat["Id"])
+    ids = [s[0]["Id"] for s in mod["Stats"] if s[0]]
+    values = [[s[1], s[2]] for s in mod["Stats"] if s[0]]
 
     if translation_file is None:
         tf_name = get_mod_translation_file(mod, constants)

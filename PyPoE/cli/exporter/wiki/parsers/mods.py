@@ -276,22 +276,9 @@ class ModParser(parser.BaseParser):
             if mod["GameMode"] is not None:
                 data["game_mode"] = mod["GameMode"]
 
-            stats = []
-            values = []
-            buffstats = mod["BuffTemplate"]["StatsKey"] if mod["BuffTemplate"] else []
-            for i in constants.MOD_STATS_RANGE:
-                k = mod["StatsKey%s" % i]
-                if k is None or k in buffstats:
-                    continue
-
-                stat = k["Id"]
-                value = mod["Stat%sMin" % i], mod["Stat%sMax" % i]
-
-                if value[0] == 0 and value[1] == 0:
-                    continue
-
-                stats.append(stat)
-                values.append(value)
+            buffstats = mod["BuffTemplate"]["Stats"] if mod["BuffTemplate"] else []
+            stats = [s[0]["Id"] for s in mod["Stats"] if s[0] and s[0] not in buffstats]
+            values = [[s[1], s[2]] for s in mod["Stats"] if s[0] and s[0] not in buffstats]
 
             data["stat_text"] = "<br>".join(self._get_stats(stats, values, mod))
             if mod["BuffTemplate"] and mod["BuffTemplate"]["AuraRadius"]:
@@ -387,25 +374,12 @@ class ModParser(parser.BaseParser):
             if not mod["Name"]:
                 continue
 
-            stats = []
-            for i in constants.MOD_STATS_RANGE:
-                stat = mod["StatsKey%s" % i]
-                if stat:
-                    stats.append(stat)
-
             info = {}
             info["name"] = mod["Name"]
             effects = []
 
-            stat_ids = [st["Id"] for st in stats]
-            stat_values = []
-
-            for i, stat in enumerate(stats):
-                j = i + 1
-                values = [mod["Stat%sMin" % j], mod["Stat%sMax" % j]]
-                if values[0] == values[1]:
-                    values = values[0]
-                stat_values.append(values)
+            stat_ids = [s[0]["Id"] for s in mod["Stats"] if s[0]]
+            stat_values = [[s[1], s[2]] for s in mod["Stats"] if s[0]]
 
             try:
                 index = stat_ids.index("map_summon_exploding_buff_storms")

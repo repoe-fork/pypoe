@@ -72,8 +72,6 @@ __all__ = [
     "RARITY",
     "SOCKET_COLOUR",
     "WORDLISTS",
-    "MOD_MAX_STATS",
-    "MOD_STATS_RANGE",
     "MOD_SELL_PRICES",
     "PASSIVE_SKILL_SIZES",
     "PASSIVE_SKILL_TYPES",
@@ -83,9 +81,6 @@ __all__ = [
     "CARD_ANIMATED_EFFECTS",
     "LIFEFORCE_TYPES",
 ]
-
-MOD_MAX_STATS = 8
-MOD_STATS_RANGE = range(1, MOD_MAX_STATS + 1)
 
 # Apparently GGG doesnt want us to know this, so they removed it in 3.5.0
 MOD_SELL_PRICES = {
@@ -643,28 +638,6 @@ class MOD_DOMAIN(IntEnumOverride):
     # legacy names
     MASTER = CRAFTED
     MISC = JEWEL
-
-
-MOD_TRANSLATION_MAP = {
-    MOD_DOMAIN.MONSTER: "monster_stat_descriptions.txt",
-    MOD_DOMAIN.CHEST: "chest_stat_descriptions.txt",
-    MOD_DOMAIN.AREA: "map_stat_descriptions.txt",
-    MOD_DOMAIN.ATLAS: "atlas_stat_descriptions.txt",
-    MOD_DOMAIN.LEAGUESTONE: "leaguestone_stat_descriptions.txt",
-    MOD_DOMAIN.DELVE_AREA: "map_stat_descriptions.txt",
-    MOD_DOMAIN.MAP_DEVICE: "map_stat_descriptions.txt",
-    # To properly support zana's innate IIQ
-    MOD_DOMAIN.CRAFTED: "map_stat_descriptions.txt",
-    MOD_DOMAIN.HEIST_NPC: "heist_equipment_stat_descriptions.txt",
-    MOD_DOMAIN.PRIMORDIAL_ALTAR: "primordial_altar_stat_descriptions.txt",
-    MOD_DOMAIN.SENTINEL: "sentinel_stat_descriptions.txt",
-    MOD_DOMAIN.TEMPLAR_RELIC: "sanctum_relic_stat_descriptions.txt",
-    MOD_DOMAIN.TINCTURE: "tincture_stat_descriptions.txt",
-    MOD_DOMAIN.MAP_RELIC: "atlas_relic_stat_descriptions.txt",
-    MOD_DOMAIN.BREQUEL_GRAFT: "graft_stat_descriptions.txt",
-    MOD_DOMAIN.HARVEST_TREE: "harvest_stat_descriptions.txt",
-    MOD_DOMAIN.LEGION_MONOLITH: "legion_stat_descriptions.txt",
-}
 
 
 class MOD_GENERATION_TYPE(IntEnumOverride):
