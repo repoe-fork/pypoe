@@ -2513,7 +2513,7 @@ def install_data_dependant_quantifiers(relational_reader: RelationalReader):
             relational_reader=relational_reader,
             table="MinionDoublingStatTypes.dat64",
             index_start=1,
-            index_column="Id",
+            index_column="Index",
             value_column="Name",
             placeholder="&lt;random Minion Type&gt;",
         )
